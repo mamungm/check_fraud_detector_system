@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+/synthetic-data/out/
+/feature_pipeline/build_training_dataset.py
+/training-data/check_fraud_training.csv
+/services/ml-service/models/

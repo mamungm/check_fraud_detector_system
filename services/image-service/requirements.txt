@@ -1,0 +1,8 @@
+fastapi==0.136.1
+uvicorn[standard]==0.46.0
+pydantic==2.13.3
+aiokafka==0.14.0
+numpy==2.4.4
+opencv-python==4.13.0.92
+ImageHash==4.3.2
+pytesseract==0.3.13

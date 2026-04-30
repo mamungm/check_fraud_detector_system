@@ -1,0 +1,29 @@
+package com.research.fraud.db.repo;
+
+import com.research.fraud.db.entity.DepositEvent;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
+@Repository
+public interface DepositEventRepository extends JpaRepository<DepositEvent, UUID> {
+    long countByMicrRoutingHashAndMicrAccountHashAndCheckSerialAndEventIdNot(
+            String routing,
+            String account,
+            String serial,
+            UUID eventId
+    );
+
+    long countByAccountTokenAndDepositTimestampAfter(
+            String accountToken,
+            OffsetDateTime cutoff
+    );
+
+    long countByAccountTokenAndDeviceTokenAndDepositTimestampAfter(
+            String accountToken,
+            String deviceToken,
+            OffsetDateTime cutoff
+    );
+}

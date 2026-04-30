@@ -1,0 +1,38 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: fraud-detector
+  docker:
+    compose:
+      enabled: false
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/frauddb
+    username: fraud
+    password: fraud
+  jpa:
+    hibernate:
+      #      ddl-auto: create
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+  kafka:
+    bootstrap-servers: localhost:9092
+fraud:
+  kafka:
+    topics:
+      service-completed: check.deposit.service.completed
+      all-services-completed: check.deposit.all.services.completed
+    # Comma-separated list. Must match the `service_name` used by downstream services.
+    required-services: consortium,image,ml
+    consumer-group: fraud-detector-completions
+    tracker-ttl: PT10M
+  services:
+    ml: ${ML_SERVICE_URL:http://localhost:8001}
+    image: ${IMAGE_SERVICE_URL:http://localhost:8002}
+    consortium: ${CONSORTIUM_SERVICE_URL:http://localhost:8003}
