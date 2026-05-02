@@ -75,16 +75,40 @@ class ConsortiumEventRequest(BaseModel):
     institutionId: str
     clearingInstitutionId: Optional[str] = None
 
+    channel: str
+
     depositTimestamp: datetime
 
     accountToken: Optional[str] = None
     payeeToken: Optional[str] = None
     payorToken: Optional[str] = None
     deviceToken: Optional[str] = None
+    # IMGFPR_v1:
+    # front_phash = ff8e1c3a7b92d441 |
+    # back_phash = 7
+    # ac91ef034bc9122 |
+    # micr_hash = 1
+    # d8ab2... |
+    # serial_hash = 7e11...
+    # Then hash full string: c4a9d7b21e8f0c99a8f7d123456789abcdef0123456789fedcba9876543210
     imageFingerprint: Optional[str] = None
 
+
+    region: Optional[str] = None
+    checkSerial: str
+
+    micrRoutingHash: Optional[str] = None
+    micrAccountHash: Optional[str] = None
+
+    imageFrontUri: Optional[str] = None
+    imageBackUri: Optional[str] = None
+
+    status: str
+    createdAt: datetime
+
     amount: float
-    confirmedFraud: bool = False
+    currency: str
+    confirmedFraud: Optional[bool] = False
 
 
 class ConsortiumScoreResponse(BaseModel):
@@ -441,6 +465,7 @@ class CrossInstitutionEvidenceService:
 
 @app.post("/match", response_model=ConsortiumScoreResponse)
 def match(event: ConsortiumEventRequest):
+    print("match api called with event:", event)
     features = ConsortiumFeatureService.compute_features(event)
     result = CrossInstitutionEvidenceService.explain(features)
 
