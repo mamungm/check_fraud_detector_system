@@ -31,11 +31,11 @@ async def lifespan(app: FastAPI):
             event_id = str(event.get("eventId", ""))
             try:
                 consortium_event = ConsortiumEventRequest.model_validate(event)
-                TokenLinkService.index_event(consortium_event)
+                consortiumScoreResponse = consortium_process_event(consortium_event)
                 await reporter.report_success(
                     event_id=event_id or "UNKNOWN",
                     latency_ms=int((time.time() - start) * 1000),
-                    details={"indexed": True},
+                    details=consortiumScoreResponse.model_dump(),
                 )
             except Exception as e:
                 print(e)
@@ -458,6 +458,13 @@ class CrossInstitutionEvidenceService:
             }
         }
 
+def consortium_process_event(event: ConsortiumEventRequest) -> ConsortiumScoreResponse:
+    features = ConsortiumFeatureService.compute_features(event)
+    result = CrossInstitutionEvidenceService.explain(features)
+
+    TokenLinkService.index_event(event)
+
+    return ConsortiumScoreResponse(**result)
 
 # -----------------------------
 # API
@@ -466,12 +473,7 @@ class CrossInstitutionEvidenceService:
 @app.post("/match", response_model=ConsortiumScoreResponse)
 def match(event: ConsortiumEventRequest):
     print("match api called with event:", event)
-    features = ConsortiumFeatureService.compute_features(event)
-    result = CrossInstitutionEvidenceService.explain(features)
-
-    TokenLinkService.index_event(event)
-
-    return ConsortiumScoreResponse(**result)
+    return consortium_process_event(event)
 
 
 @app.get("/health")

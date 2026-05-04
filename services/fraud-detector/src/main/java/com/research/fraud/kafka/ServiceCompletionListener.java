@@ -1,6 +1,7 @@
 package com.research.fraud.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.research.fraud.dto.ServiceCompletionEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -23,12 +24,13 @@ public class ServiceCompletionListener {
             groupId = "${fraud.kafka.consumer-group:fraud-detector-completions}"
     )
     public void onMessage(String payload) {
-//        try {
-//            ServiceCompletionEvent evt = objectMapper.readValue(payload, ServiceCompletionEvent.class);
-//            tracker.onServiceCompletion(evt);
-//        } catch (Exception e) {
-//            log.warn("Failed to parse service completion message: {}", payload, e);
-//        }
+        try {
+            log.info("Received service completion event from topic {}", payload);
+            ServiceCompletionEvent evt = objectMapper.readValue(payload, ServiceCompletionEvent.class);
+            tracker.onServiceCompletion(evt);
+        } catch (Exception e) {
+            log.warn("Failed to parse service completion message: {}", payload, e);
+        }
     }
 }
 

@@ -34,14 +34,12 @@ async def lifespan(app: FastAPI):
             try:
                 req = ImageAnalysisRequest.model_validate(event)
                 # Avoid blocking the asyncio loop (opencv / OCR are CPU-heavy)
+                imageServiceScoreResponse = image_service_process_event(req)
                 result = await asyncio.to_thread(handle, req)
                 await reporter.report_success(
                     event_id=event_id or "UNKNOWN",
                     latency_ms=int((time.time() - start) * 1000),
-                    details={
-                        "image_duplicate_score": result.image_duplicate_score,
-                        "reasonCodes": result.reasonCodes,
-                    },
+                    details=imageServiceScoreResponse.model_dump(),
                 )
             except Exception as e:
                 await reporter.report_failure(
@@ -133,9 +131,9 @@ def perceptual_hash_score(image_path: str, event_id: str) -> Dict[str, Any]:
     return {
         "phash": str(phash),
         "dhash": str(dhash),
-        "duplicate_score": round(duplicate_score, 4),
+        "duplicate_score": float(round(duplicate_score, 4)),
         "closest_event": closest_event,
-        "closest_distance": closest_distance if closest_event else None
+        "closest_distance": int(closest_distance) if closest_event else None
     }
 
 def extract_ocr_text(img: np.ndarray) -> str:
@@ -324,29 +322,27 @@ def endorsement_score(back_img: Optional[np.ndarray]) -> float:
 #         latencyMs=int((time.time() - start) * 1000)
 #     )
 
-
-@app.post("/analyze", response_model=ImageAnalysisResponse)
-def handle(req: ImageAnalysisRequest):
+def image_service_process_event(event: ImageAnalysisRequest) -> ImageAnalysisResponse:
     start = time.time()
     reasons = []
 
-    front_img = load_image(req.imageFrontUri)
+    front_img = load_image(event.imageFrontUri)
 
     back_img = None
-    if req.imageBackUri:
+    if event.imageBackUri:
         try:
-            back_img = load_image(req.imageBackUri)
+            back_img = load_image(event.imageBackUri)
         except Exception:
             reasons.append("BACK_IMAGE_UNREADABLE")
 
-    hash_result = perceptual_hash_score(req.imageFrontUri, req.eventId)
+    hash_result = perceptual_hash_score(event.imageFrontUri, event.eventId)
 
     if hash_result["duplicate_score"] >= 0.8:
         reasons.append("DUPLICATE_OR_NEAR_DUPLICATE_IMAGE")
 
     ocr_text = extract_ocr_text(front_img)
     ocr_amounts = extract_amounts_from_text(ocr_text)
-    ocr_match = amount_match_score(req.amount, ocr_amounts)
+    ocr_match = amount_match_score(event.amount, ocr_amounts)
 
     if not ocr_match:
         reasons.append("OCR_AMOUNT_MISMATCH")
@@ -380,7 +376,7 @@ def handle(req: ImageAnalysisRequest):
         explanation={
             "ocrTextPreview": ocr_text[:500],
             "ocrAmountsDetected": ocr_amounts,
-            "expectedAmount": req.amount,
+            "expectedAmount": event.amount,
             "hashing": hash_result,
             "heuristics": {
                 "layout": "Hough line structure count",
@@ -396,6 +392,12 @@ def handle(req: ImageAnalysisRequest):
         },
         latencyMs=latency
     )
+
+@app.post("/analyze", response_model=ImageAnalysisResponse)
+def handle(req: ImageAnalysisRequest):
+    response = image_service_process_event(req)
+
+    return response
 
 @app.get("/health")
 def health():

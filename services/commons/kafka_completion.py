@@ -36,6 +36,7 @@ class CompletionReporter:
         self._service_name = service_name
 
     async def report_success(self, *, event_id: str, latency_ms: int, details: Optional[Dict[str, Any]] = None) -> None:
+        print("report_success", event_id, latency_ms, details)
         await self._send(
             ServiceCompletionEvent(
                 eventId=event_id,
