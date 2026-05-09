@@ -7,6 +7,7 @@ import joblib
 import pandas as pd
 from fastapi import FastAPI
 from pydantic import BaseModel
+import json
 
 import asyncio
 from contextlib import asynccontextmanager
@@ -27,20 +28,19 @@ async def lifespan(app: FastAPI):
 
     class MlKafkaHandler(KafkaEventHandler):
         async def handle_event(self, event: dict):
+            print(f"Received {self.name} event: {event}")
             start = time.time()
             event_id = str(event.get("eventId", ""))
             try:
-                req = DepositScoreRequest.model_validate(event)
-                resp = await asyncio.to_thread(score_deposit, req)
+                combined_score_request_event = CombinedScoreRequest.model_validate(event)
+                combinedScoreResponse = combined_process_event(combined_score_request_event)
                 await reporter.report_success(
                     event_id=event_id or "UNKNOWN",
                     latency_ms=int((time.time() - start) * 1000),
-                    details={
-                        "fraudProbability": resp.fraudProbability,
-                        "recommendedAction": resp.recommendedAction,
-                        "riskBand": resp.calibratedRiskBand,
-                    },
+                    details=combinedScoreResponse.model_dump(),
                 )
+                print(f"Processed {self.name} event {event_id} successfully in {int((time.time() - start) * 1000)} ms. "
+                      f"response = {json.dumps(combinedScoreResponse.model_dump(), indent=4)}")
             except Exception as e:
                 await reporter.report_failure(
                     event_id=event_id or "UNKNOWN",
@@ -327,12 +327,10 @@ def score_in_clearing(req: InClearingScoreRequest):
         modelVersion="0.1.0"
     )
 
-
-@app.post("/score/combined", response_model=CombinedScoreResponse)
-def score_combined(req: CombinedScoreRequest):
+def combined_process_event(event: CombinedScoreRequest) -> CombinedScoreResponse:
     start = time.time()
 
-    row = req.model_dump()
+    row = event.model_dump()
 
     deposit_prob = score_model(deposit_model, row, DEPOSIT_FEATURES)
 
@@ -372,12 +370,12 @@ def score_combined(req: CombinedScoreRequest):
     )
 
     top_reasons = (
-        ["deposit:" + r for r in top_reason_strings(deposit_contrib)]
-        + ["in_clearing:" + r for r in top_reason_strings(clearing_contrib)]
+            ["deposit:" + r for r in top_reason_strings(deposit_contrib)]
+            + ["in_clearing:" + r for r in top_reason_strings(clearing_contrib)]
     )[:8]
 
     return CombinedScoreResponse(
-        eventId=req.eventId,
+        eventId=event.eventId,
         depositFraudProbability=round(deposit_prob, 4),
         inClearingFraudProbability=round(in_clearing_prob, 4),
         finalFraudProbability=round(final_prob, 4),
@@ -395,6 +393,13 @@ def score_combined(req: CombinedScoreRequest):
             "inClearingFeatureContributions": clearing_contrib
         }
     )
+
+
+
+@app.post("/score/combined", response_model=CombinedScoreResponse)
+def score_combined(req: CombinedScoreRequest):
+    print("score/combined api called with event:", req)
+    return combined_process_event(req)
 
 
 @app.get("/health")

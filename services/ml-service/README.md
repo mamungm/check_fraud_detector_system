@@ -1,4 +1,4 @@
-# Image-Based Check Fraud Analysis Service
+# ML-Based Check Fraud Scoring Service
 This implementation represents two-stage machine-learning fraud scoring service of a check-fraud detection system. It loads trained fraud models, receives deposit or in-clearing events, converts event attributes into model features, predicts fraud probability, assigns a risk band, recommends an action, and returns explainable feature-level reasons.
 
 ### 1. Overall Purpose

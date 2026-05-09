@@ -29,13 +29,13 @@ async def lifespan(app: FastAPI):
 
     class ImageKafkaHandler(KafkaEventHandler):
         async def handle_event(self, event: dict):
+            print(f"Received {self.name} event: {event}")
             start = time.time()
             event_id = str(event.get("eventId", ""))
             try:
                 req = ImageAnalysisRequest.model_validate(event)
                 # Avoid blocking the asyncio loop (opencv / OCR are CPU-heavy)
-                imageServiceScoreResponse = image_service_process_event(req)
-                result = await asyncio.to_thread(handle, req)
+                imageServiceScoreResponse = await asyncio.to_thread(image_service_process_event, req)
                 await reporter.report_success(
                     event_id=event_id or "UNKNOWN",
                     latency_ms=int((time.time() - start) * 1000),

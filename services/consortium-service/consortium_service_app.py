@@ -30,8 +30,8 @@ async def lifespan(app: FastAPI):
             start = time.time()
             event_id = str(event.get("eventId", ""))
             try:
-                consortium_event = ConsortiumEventRequest.model_validate(event)
-                consortiumScoreResponse = consortium_process_event(consortium_event)
+                req = ConsortiumEventRequest.model_validate(event)
+                consortiumScoreResponse = await asyncio.to_thread(consortium_process_event, req)
                 await reporter.report_success(
                     event_id=event_id or "UNKNOWN",
                     latency_ms=int((time.time() - start) * 1000),
