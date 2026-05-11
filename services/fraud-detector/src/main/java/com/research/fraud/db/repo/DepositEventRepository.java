@@ -9,7 +9,7 @@ import java.util.UUID;
 
 @Repository
 public interface DepositEventRepository extends JpaRepository<DepositEvent, UUID> {
-    long countByMicrRoutingHashAndMicrAccountHashAndCheckSerialAndEventIdNot(
+    long countByMicrRoutingHashAndMicrAccountHashAndCheckSerialHashAndEventIdNot(
             String routing,
             String account,
             String serial,

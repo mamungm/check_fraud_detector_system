@@ -7,19 +7,21 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record DepositEventRequest(
-        UUID eventId,
         UUID institutionId,
+        UUID clearingInstitutionId,
         DepositEvent.Channel channel,
         OffsetDateTime depositTimestamp,
         BigDecimal amount,
         String currency,
         String accountToken,
         String payeeToken,
+        String payorToken,
         String deviceToken,
         String region,
-        String checkSerial,
+        String checkSerialHash,
         String micrRoutingHash,
         String micrAccountHash,
         String imageFrontUri,
         String imageBackUri
-) {}
+) {
+}

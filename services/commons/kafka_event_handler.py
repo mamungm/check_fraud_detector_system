@@ -22,7 +22,6 @@ class KafkaEventHandler:
         self,
         name: str,
         topics: str,
-        *,
         bootstrap_servers: Optional[str] = None,
         group_id: Optional[str] = None,
         auto_offset_reset: str = "earliest",

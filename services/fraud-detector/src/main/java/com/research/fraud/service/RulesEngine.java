@@ -21,10 +21,10 @@ public class RulesEngine {
         List<Map<String, Object>> hits = new ArrayList<>();
 
         int dup = Math.toIntExact(depositEventRepository
-                .countByMicrRoutingHashAndMicrAccountHashAndCheckSerialAndEventIdNot(
+                .countByMicrRoutingHashAndMicrAccountHashAndCheckSerialHashAndEventIdNot(
                         e.getMicrRoutingHash(),
                         e.getMicrAccountHash(),
-                        e.getCheckSerial(),
+                        e.getCheckSerialHash(),
                         e.getEventId()
                 ));
 

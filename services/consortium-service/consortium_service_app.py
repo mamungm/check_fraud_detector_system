@@ -1,9 +1,18 @@
+from io import BytesIO
+from pathlib import Path
+from urllib.parse import urlparse
+
+import json
+import requests
+import imagehash
+from PIL import Image, ImageOps
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List, Tuple
 from collections import defaultdict
 from datetime import datetime, timedelta
 import hashlib
+from enum import Enum
 
 import asyncio
 import os
@@ -26,41 +35,61 @@ async def lifespan(app: FastAPI):
 
     class ConsortiumKafkaHandler(KafkaEventHandler):
         async def handle_event(self, event: dict):
-            print(f"Received {self.name} event: {event}")
+            print(f"Received {self.name} event:", json.dumps(event, indent=4))
             start = time.time()
-            event_id = str(event.get("eventId", ""))
-            try:
-                req = ConsortiumEventRequest.model_validate(event)
-                consortiumScoreResponse = await asyncio.to_thread(consortium_process_event, req)
-                await reporter.report_success(
-                    event_id=event_id or "UNKNOWN",
-                    latency_ms=int((time.time() - start) * 1000),
-                    details=consortiumScoreResponse.model_dump(),
-                )
-            except Exception as e:
-                print(e)
-                await reporter.report_failure(
-                    event_id=event_id or "UNKNOWN",
-                    latency_ms=int((time.time() - start) * 1000),
-                    error=str(e),
-                )
+            if self.name == "consortium_kafka_check.deposit.fraud.decision":
+                event_id = str(event.get("eventId", ""))
+                try:
+                    req = FraudDispositionEventRequest.model_validate(event)
+                    set_fraud_disposition(event_id, req)
+                except Exception as e:
+                    await reporter.report_failure(
+                        event_id=event_id or "UNKNOWN",
+                        latency_ms=int((time.time() - start) * 1000),
+                        error=str(e),
+                    )
 
-    consortium_kafka_event_handler = ConsortiumKafkaHandler(
-        "consortium_kafka",
-        "check.deposit.created",
-        group_id="consortium-fraud-service",
-        bootstrap_servers=bootstrap,
-    )
-    consortium_kafka_task = asyncio.create_task(
-        consortium_kafka_event_handler.run_consumer(stop_event)
-    )
+            elif self.name == "consortium_kafka_check.deposit.created":
+                event_id = str(event.get("eventId", ""))
+                try:
+                    req = ConsortiumEventRequest.model_validate(event)
+                    consortiumScoreResponse = await asyncio.to_thread(consortium_process_event, req)
+                    latencyMS = int((time.time() - start) * 1000)
+                    print(f"Giving Response, latency= {latencyMS}ms :", json.dumps(consortiumScoreResponse.model_dump(), indent=4))
+                    await reporter.report_success(
+                        event_id=event_id or "UNKNOWN",
+                        latency_ms=latencyMS,
+                        details=consortiumScoreResponse.model_dump(),
+                    )
+                except Exception as e:
+                    print(e)
+                    await reporter.report_failure(
+                        event_id=event_id or "UNKNOWN",
+                        latency_ms=int((time.time() - start) * 1000),
+                        error=str(e),
+                    )
+
+    topics = ["check.deposit.created", "check.deposit.fraud.decision"]
+    handlers = [
+        ConsortiumKafkaHandler(
+            f"consortium_kafka_{topic}",
+            topic,
+            group_id="consortium-fraud-service",
+            bootstrap_servers=bootstrap,
+        )
+        for topic in topics
+    ]
+    tasks = [
+        asyncio.create_task(handler.run_consumer(stop_event))
+        for handler in handlers
+    ]
 
     try:
         yield
 
     finally:
         stop_event.set()
-        await consortium_kafka_task
+        await asyncio.gather(*tasks)
         await producer.stop()
 
 app = FastAPI(title="Consortium Risk Service", lifespan=lifespan)
@@ -69,6 +98,15 @@ app = FastAPI(title="Consortium Risk Service", lifespan=lifespan)
 # -----------------------------
 # DTOs
 # -----------------------------
+
+class FraudDisposition(str, Enum):
+    UNKNOWN = "UNKNOWN"
+    CONFIRMED_FRAUD = "CONFIRMED_FRAUD"
+    CLEARED = "CLEARED"
+
+class FraudDispositionEventRequest(BaseModel):
+    eventId: str
+    fraudDisposition: FraudDisposition
 
 class ConsortiumEventRequest(BaseModel):
     eventId: str
@@ -83,6 +121,24 @@ class ConsortiumEventRequest(BaseModel):
     payeeToken: Optional[str] = None
     payorToken: Optional[str] = None
     deviceToken: Optional[str] = None
+
+    region: Optional[str] = None
+    checkSerialHash: str
+
+    micrRoutingHash: Optional[str] = None
+    micrAccountHash: Optional[str] = None
+
+    imageFrontUri: Optional[str] = None
+    imageBackUri: Optional[str] = None
+
+    # status: str
+    # createdAt: datetime
+
+    amount: float
+    currency: str
+    fraudDisposition: FraudDisposition = FraudDisposition.UNKNOWN
+
+    #Computed features
     # IMGFPR_v1:
     # front_phash = ff8e1c3a7b92d441 |
     # back_phash = 7
@@ -92,24 +148,6 @@ class ConsortiumEventRequest(BaseModel):
     # serial_hash = 7e11...
     # Then hash full string: c4a9d7b21e8f0c99a8f7d123456789abcdef0123456789fedcba9876543210
     imageFingerprint: Optional[str] = None
-
-
-    region: Optional[str] = None
-    checkSerial: str
-
-    micrRoutingHash: Optional[str] = None
-    micrAccountHash: Optional[str] = None
-
-    imageFrontUri: Optional[str] = None
-    imageBackUri: Optional[str] = None
-
-    status: str
-    createdAt: datetime
-
-    amount: float
-    currency: str
-    confirmedFraud: Optional[bool] = False
-
 
 class ConsortiumScoreResponse(BaseModel):
     score: float
@@ -158,12 +196,25 @@ def unique_institutions(events: List[ConsortiumEventRequest]) -> set[str]:
 
 
 def count_frauds(events: List[ConsortiumEventRequest]) -> int:
-    return sum(1 for e in events if e.confirmedFraud)
+    return sum(
+        1
+        for e in events
+        if e.fraudDisposition == "CONFIRMED_FRAUD"
+    )
 
 
 def recent(events: List[ConsortiumEventRequest], now: datetime, days: int) -> List[ConsortiumEventRequest]:
     cutoff = days_ago(now, days)
     return [e for e in events if e.depositTimestamp >= cutoff]
+
+
+def set_fraud_disposition(event_id: str, fraud_disposition: FraudDispositionEventRequest):
+    for e in EVENTS:
+        if e.eventId == event_id:
+            e.fraudDisposition = fraud_disposition.fraudDisposition
+            print(f"Updated event {event_id} with fraud disposition {fraud_disposition.fraudDisposition}")
+            return
+    print(f"Event {event_id} not found to update fraud disposition")
 
 
 # -----------------------------
@@ -458,7 +509,72 @@ class CrossInstitutionEvidenceService:
             }
         }
 
+def compute_phash(image_uri: str) -> str:
+    """
+    Supports:
+    - local filesystem paths
+    - S3 HTTPS URLs
+    - presigned URLs
+    - MinIO URLs
+    """
+
+    parsed = urlparse(image_uri)
+
+    # -----------------------------
+    # Remote URL (http / https)
+    # -----------------------------
+    if parsed.scheme in ("http", "https"):
+
+        response = requests.get(image_uri, timeout=15)
+        response.raise_for_status()
+
+        with Image.open(BytesIO(response.content)) as img:
+            img = ImageOps.exif_transpose(img)
+            img = img.convert("L")
+
+            return str(imagehash.phash(img))
+
+    # -----------------------------
+    # Local filesystem path
+    # -----------------------------
+    else:
+        path = Path(image_uri)
+
+        if not path.exists():
+            raise FileNotFoundError(f"Image not found: {image_uri}")
+
+        with Image.open(path) as img:
+            img = ImageOps.exif_transpose(img)
+            img = img.convert("L")
+
+            return str(imagehash.phash(img))
+
+def compute_image_fingerprint(event: ConsortiumEventRequest):
+    front_phash = compute_phash(event.imageFrontUri) if event.imageFrontUri else None
+
+    back_phash = compute_phash(event.imageBackUri) if event.imageBackUri else None
+
+    micr_string = f"{event.micrRoutingHash}|{event.accountToken}|{event.checkSerialHash}"
+    micr_hash = hashlib.sha256(micr_string.encode()).hexdigest()
+
+    normalized = f"PAYEE:{(event.payeeToken or "").upper().strip()}AMOUNT:{event.amount:.2f}DATE:{event.depositTimestamp}"
+    ocr_hash = hashlib.sha256(normalized.encode()).hexdigest()
+
+    fingerprint_string = "|".join([
+        f"front={front_phash}",
+        f"back={back_phash}",
+        f"micr={micr_hash}",
+        f"serial={micr_hash}",
+        f"ocr={ocr_hash}",
+    ])
+
+    image_fingerprint = hashlib.sha256(fingerprint_string.encode()).hexdigest()
+
+    event.imageFingerprint = image_fingerprint
+
+
 def consortium_process_event(event: ConsortiumEventRequest) -> ConsortiumScoreResponse:
+    compute_image_fingerprint(event)
     features = ConsortiumFeatureService.compute_features(event)
     result = CrossInstitutionEvidenceService.explain(features)
 
@@ -475,6 +591,13 @@ def match(event: ConsortiumEventRequest):
     print("match api called with event:", event)
     return consortium_process_event(event)
 
+@app.post("/fraud-decision")
+def fraud_decision(event_id: str, disposition: str):
+    for e in EVENTS:
+        if e.eventId == event_id:
+            e.fraudDisposition = FraudDisposition(disposition)
+            return {"status": "updated", "eventId": event_id, "disposition": disposition}
+    return {"status": "not_found", "eventId": event_id}
 
 @app.get("/health")
 def health():

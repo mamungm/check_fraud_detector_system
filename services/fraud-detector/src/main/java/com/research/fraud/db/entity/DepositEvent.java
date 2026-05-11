@@ -23,6 +23,8 @@ public class DepositEvent {
 
     private UUID institutionId;
 
+    private UUID clearingInstitutionId;
+
     @Enumerated(EnumType.STRING)
     private Channel channel;
 
@@ -39,11 +41,13 @@ public class DepositEvent {
 
     private String payeeToken;
 
+    private String payorToken;
+
     private String deviceToken;
 
     private String region;
 
-    private String checkSerial;
+    private String checkSerialHash;
 
     private String micrRoutingHash;
 
