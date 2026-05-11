@@ -1,168 +1,26 @@
+from typing import Optional, Dict, Any, Tuple
+from collections import defaultdict
+from datetime import datetime, timedelta
+import hashlib
+
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlparse
 
-import json
 import requests
 import imagehash
 from PIL import Image, ImageOps
-from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import Optional, Dict, Any, List, Tuple
-from collections import defaultdict
-from datetime import datetime, timedelta
-import hashlib
-from enum import Enum
+from sqlalchemy.orm import Session
 
-import asyncio
-import os
-import time
-from contextlib import asynccontextmanager
-from services.commons.kafka_event_handler import KafkaEventHandler
-from services.commons.kafka_completion import CompletionReporter
-from aiokafka import AIOKafkaProducer
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    stop_event = asyncio.Event()
-
-    bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-    completion_topic = os.getenv("KAFKA_COMPLETION_TOPIC", "check.deposit.service.completed")
-
-    producer = AIOKafkaProducer(bootstrap_servers=bootstrap)
-    await producer.start()
-    reporter = CompletionReporter(producer, topic=completion_topic, service_name="consortium")
-
-    class ConsortiumKafkaHandler(KafkaEventHandler):
-        async def handle_event(self, event: dict):
-            print(f"Received {self.name} event:", json.dumps(event, indent=4))
-            start = time.time()
-            if self.name == "consortium_kafka_check.deposit.fraud.decision":
-                event_id = str(event.get("eventId", ""))
-                try:
-                    req = FraudDispositionEventRequest.model_validate(event)
-                    set_fraud_disposition(event_id, req)
-                except Exception as e:
-                    await reporter.report_failure(
-                        event_id=event_id or "UNKNOWN",
-                        latency_ms=int((time.time() - start) * 1000),
-                        error=str(e),
-                    )
-
-            elif self.name == "consortium_kafka_check.deposit.created":
-                event_id = str(event.get("eventId", ""))
-                try:
-                    req = ConsortiumEventRequest.model_validate(event)
-                    consortiumScoreResponse = await asyncio.to_thread(consortium_process_event, req)
-                    latencyMS = int((time.time() - start) * 1000)
-                    print(f"Giving Response, latency= {latencyMS}ms :", json.dumps(consortiumScoreResponse.model_dump(), indent=4))
-                    await reporter.report_success(
-                        event_id=event_id or "UNKNOWN",
-                        latency_ms=latencyMS,
-                        details=consortiumScoreResponse.model_dump(),
-                    )
-                except Exception as e:
-                    print(e)
-                    await reporter.report_failure(
-                        event_id=event_id or "UNKNOWN",
-                        latency_ms=int((time.time() - start) * 1000),
-                        error=str(e),
-                    )
-
-    topics = ["check.deposit.created", "check.deposit.fraud.decision"]
-    handlers = [
-        ConsortiumKafkaHandler(
-            f"consortium_kafka_{topic}",
-            topic,
-            group_id="consortium-fraud-service",
-            bootstrap_servers=bootstrap,
-        )
-        for topic in topics
-    ]
-    tasks = [
-        asyncio.create_task(handler.run_consumer(stop_event))
-        for handler in handlers
-    ]
-
-    try:
-        yield
-
-    finally:
-        stop_event.set()
-        await asyncio.gather(*tasks)
-        await producer.stop()
-
-app = FastAPI(title="Consortium Risk Service", lifespan=lifespan)
-
-
-# -----------------------------
-# DTOs
-# -----------------------------
-
-class FraudDisposition(str, Enum):
-    UNKNOWN = "UNKNOWN"
-    CONFIRMED_FRAUD = "CONFIRMED_FRAUD"
-    CLEARED = "CLEARED"
-
-class FraudDispositionEventRequest(BaseModel):
-    eventId: str
-    fraudDisposition: FraudDisposition
-
-class ConsortiumEventRequest(BaseModel):
-    eventId: str
-    institutionId: str
-    clearingInstitutionId: Optional[str] = None
-
-    channel: str
-
-    depositTimestamp: datetime
-
-    accountToken: Optional[str] = None
-    payeeToken: Optional[str] = None
-    payorToken: Optional[str] = None
-    deviceToken: Optional[str] = None
-
-    region: Optional[str] = None
-    checkSerialHash: str
-
-    micrRoutingHash: Optional[str] = None
-    micrAccountHash: Optional[str] = None
-
-    imageFrontUri: Optional[str] = None
-    imageBackUri: Optional[str] = None
-
-    # status: str
-    # createdAt: datetime
-
-    amount: float
-    currency: str
-    fraudDisposition: FraudDisposition = FraudDisposition.UNKNOWN
-
-    #Computed features
-    # IMGFPR_v1:
-    # front_phash = ff8e1c3a7b92d441 |
-    # back_phash = 7
-    # ac91ef034bc9122 |
-    # micr_hash = 1
-    # d8ab2... |
-    # serial_hash = 7e11...
-    # Then hash full string: c4a9d7b21e8f0c99a8f7d123456789abcdef0123456789fedcba9876543210
-    imageFingerprint: Optional[str] = None
-
-class ConsortiumScoreResponse(BaseModel):
-    score: float
-    topReasons: List[str]
-    supportingLinkedCounts: Dict[str, Any]
-    recencyWindows: Dict[str, Any]
-    explanation: Dict[str, Any]
-
+from db.consortium_db_handler import add_consortium_event
+from db.entities.consortium_entities import ConsortiumEventEntity
+from dtos.consortium_dtos import FraudDispositionEventRequest, ConsortiumEventRequest, ConsortiumScoreResponse
 
 # -----------------------------
 # In-memory consortium store
 # Replace with PostgreSQL / DynamoDB / feature store later
 # -----------------------------
-
-EVENTS: List[ConsortiumEventRequest] = []
+from typing import List
 
 TOKEN_INDEX: Dict[Tuple[str, str], List[ConsortiumEventRequest]] = defaultdict(list)
 RELATION_INDEX: Dict[Tuple[str, str], List[ConsortiumEventRequest]] = defaultdict(list)
@@ -208,12 +66,12 @@ def recent(events: List[ConsortiumEventRequest], now: datetime, days: int) -> Li
     return [e for e in events if e.depositTimestamp >= cutoff]
 
 
-def set_fraud_disposition(event_id: str, fraud_disposition: FraudDispositionEventRequest):
-    for e in EVENTS:
-        if e.eventId == event_id:
-            e.fraudDisposition = fraud_disposition.fraudDisposition
-            print(f"Updated event {event_id} with fraud disposition {fraud_disposition.fraudDisposition}")
-            return
+def set_fraud_disposition(event_id: str, fraud_disposition: FraudDispositionEventRequest, db: Session):
+    # for e in EVENTS:
+    #     if e.eventId == event_id:
+    #         e.fraudDisposition = fraud_disposition.fraudDisposition
+    #         print(f"Updated event {event_id} with fraud disposition {fraud_disposition.fraudDisposition}")
+    #         return
     print(f"Event {event_id} not found to update fraud disposition")
 
 
@@ -224,7 +82,7 @@ def set_fraud_disposition(event_id: str, fraud_disposition: FraudDispositionEven
 class TokenLinkService:
 
     @staticmethod
-    def index_event(event: ConsortiumEventRequest):
+    def index_event(event: ConsortiumEventRequest, db: Session):
         token_fields = {
             "account": event.accountToken,
             "payee": event.payeeToken,
@@ -243,7 +101,7 @@ class TokenLinkService:
         if event.clearingInstitutionId:
             BANK_FLOW_INDEX[(event.institutionId, event.clearingInstitutionId)].append(event)
 
-        EVENTS.append(event)
+        add_consortium_event(ConsortiumEventEntity(**event.model_dump()), db)
 
     @staticmethod
     def get_token_events(token_type: str, token: Optional[str]) -> List[ConsortiumEventRequest]:
@@ -573,46 +431,11 @@ def compute_image_fingerprint(event: ConsortiumEventRequest):
     event.imageFingerprint = image_fingerprint
 
 
-def consortium_process_event(event: ConsortiumEventRequest) -> ConsortiumScoreResponse:
+def consortium_process_event(event: ConsortiumEventRequest, db: Session) -> ConsortiumScoreResponse:
     compute_image_fingerprint(event)
     features = ConsortiumFeatureService.compute_features(event)
     result = CrossInstitutionEvidenceService.explain(features)
 
-    TokenLinkService.index_event(event)
+    TokenLinkService.index_event(event, db)
 
     return ConsortiumScoreResponse(**result)
-
-# -----------------------------
-# API
-# -----------------------------
-
-@app.post("/match", response_model=ConsortiumScoreResponse)
-def match(event: ConsortiumEventRequest):
-    print("match api called with event:", event)
-    return consortium_process_event(event)
-
-@app.post("/fraud-decision")
-def fraud_decision(event_id: str, disposition: str):
-    for e in EVENTS:
-        if e.eventId == event_id:
-            e.fraudDisposition = FraudDisposition(disposition)
-            return {"status": "updated", "eventId": event_id, "disposition": disposition}
-    return {"status": "not_found", "eventId": event_id}
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-
-@app.get("/debug/stats")
-def stats():
-    return {
-        "eventCount": len(EVENTS),
-        "tokenIndexSize": len(TOKEN_INDEX),
-        "relationshipIndexSize": len(RELATION_INDEX),
-        "bankFlowIndexSize": len(BANK_FLOW_INDEX),
-    }
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("consortium_service_app:app", host="0.0.0.0", port=8081)
