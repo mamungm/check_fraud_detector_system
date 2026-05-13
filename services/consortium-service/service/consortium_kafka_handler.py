@@ -4,7 +4,7 @@ import time
 
 import json
 
-from db.consortium_db_handler import get_db_session_from_context
+from db.connection.consortium_db_connection import get_db_session_from_context
 from service.consortium_service import consortium_process_event, set_fraud_disposition
 
 from services.commons.kafka_event_handler import KafkaEventHandler

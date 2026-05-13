@@ -1,6 +1,5 @@
-from typing import Optional, Dict, Any, Tuple
-from collections import defaultdict
-from datetime import datetime, timedelta
+from typing import Optional, Dict, Any
+from datetime import datetime, timedelta, timezone
 import hashlib
 
 from io import BytesIO
@@ -12,19 +11,12 @@ import imagehash
 from PIL import Image, ImageOps
 from sqlalchemy.orm import Session
 
-from db.consortium_db_handler import add_consortium_event
-from db.entities.consortium_entities import ConsortiumEventEntity
+from db.entity.consortium_entities import ConsortiumEventEntity, TokenIndexEntity, TokenType, RelationIndexEntity, \
+    BankFlowIndexEntity
+from db.repo.consortium_repositories import add_consortium_event, add_token_index, add_relation_index, get_token_events, \
+    get_relation_events, get_bank_flow_events, add_bank_flow_index
 from dtos.consortium_dtos import FraudDispositionEventRequest, ConsortiumEventRequest, ConsortiumScoreResponse
-
-# -----------------------------
-# In-memory consortium store
-# Replace with PostgreSQL / DynamoDB / feature store later
-# -----------------------------
 from typing import List
-
-TOKEN_INDEX: Dict[Tuple[str, str], List[ConsortiumEventRequest]] = defaultdict(list)
-RELATION_INDEX: Dict[Tuple[str, str], List[ConsortiumEventRequest]] = defaultdict(list)
-BANK_FLOW_INDEX: Dict[Tuple[str, str], List[ConsortiumEventRequest]] = defaultdict(list)
 
 
 # -----------------------------
@@ -38,6 +30,8 @@ def token_preview(token: Optional[str]) -> Optional[str]:
 
 
 def days_ago(ts: datetime, days: int) -> datetime:
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
     return ts - timedelta(days=days)
 
 
@@ -62,8 +56,18 @@ def count_frauds(events: List[ConsortiumEventRequest]) -> int:
 
 
 def recent(events: List[ConsortiumEventRequest], now: datetime, days: int) -> List[ConsortiumEventRequest]:
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+
     cutoff = days_ago(now, days)
-    return [e for e in events if e.depositTimestamp >= cutoff]
+    return [
+        e for e in events
+        if (
+            e.depositTimestamp.replace(tzinfo=timezone.utc)
+            if e.depositTimestamp.tzinfo is None
+            else e.depositTimestamp
+        ) >= cutoff
+    ]
 
 
 def set_fraud_disposition(event_id: str, fraud_disposition: FraudDispositionEventRequest, db: Session):
@@ -83,31 +87,57 @@ class TokenLinkService:
 
     @staticmethod
     def index_event(event: ConsortiumEventRequest, db: Session):
+        if event.eventId is None:
+            return
+
         token_fields = {
-            "account": event.accountToken,
-            "payee": event.payeeToken,
-            "payor": event.payorToken,
-            "device": event.deviceToken,
-            "image": event.imageFingerprint,
+            TokenType.ACCOUNT: event.accountToken,
+            TokenType.PAYEE: event.payeeToken,
+            TokenType.PAYOR: event.payorToken,
+            TokenType.DEVICE: event.deviceToken,
+            TokenType.IMAGE: event.imageFingerprint,
         }
 
         for token_type, token in token_fields.items():
             if token:
-                TOKEN_INDEX[(token_type, token)].append(event)
+                add_token_index(
+                    TokenIndexEntity(
+                        token_type=token_type,
+                        token_value=token,
+                        event_id=event.eventId,
+                        institution_id=event.institutionId,
+                        deposit_timestamp=event.depositTimestamp,
+                        fraud_disposition=event.fraudDisposition.value if hasattr(event.fraudDisposition, "value") else str(event.fraudDisposition),
+                    ), db)
 
         if event.payorToken and event.payeeToken:
-            RELATION_INDEX[(event.payorToken, event.payeeToken)].append(event)
+            add_relation_index(
+                RelationIndexEntity(
+                    payor_token=event.payorToken,
+                    payee_token=event.payeeToken,
+                    event_id=event.eventId,
+                    institution_id=event.institutionId,
+                    deposit_timestamp=event.depositTimestamp,
+                    fraud_disposition=event.fraudDisposition.value if hasattr(event.fraudDisposition, "value") else str(
+                        event.fraudDisposition),
+                ),
+                db,
+            )
 
         if event.clearingInstitutionId:
-            BANK_FLOW_INDEX[(event.institutionId, event.clearingInstitutionId)].append(event)
+            add_bank_flow_index(
+                BankFlowIndexEntity(
+                    deposit_institution=event.institutionId,
+                    clearing_institution=event.clearingInstitutionId,
+                    event_id=event.eventId,
+                    deposit_timestamp=event.depositTimestamp,
+                    fraud_disposition=event.fraudDisposition.value if hasattr(event.fraudDisposition, "value") else str(
+                        event.fraudDisposition),
+                ),
+                db,
+            )
 
         add_consortium_event(ConsortiumEventEntity(**event.model_dump()), db)
-
-    @staticmethod
-    def get_token_events(token_type: str, token: Optional[str]) -> List[ConsortiumEventRequest]:
-        if not token:
-            return []
-        return TOKEN_INDEX.get((token_type, token), [])
 
 
 # -----------------------------
@@ -117,8 +147,8 @@ class TokenLinkService:
 class NetworkRiskAggregator:
 
     @staticmethod
-    def token_frequency_risk(token_type: str, token: Optional[str], now: datetime) -> Dict[str, Any]:
-        events = TokenLinkService.get_token_events(token_type, token)
+    def token_frequency_risk(token_type: TokenType, token: Optional[str], now: datetime, db: Session) -> Dict[str, Any]:
+        events = get_token_events(token_type, token, db)
 
         e7 = recent(events, now, 7)
         e14 = recent(events, now, 14)
@@ -130,25 +160,25 @@ class NetworkRiskAggregator:
         score = 0.0
         reasons = []
 
-        if token_type == "payee" and len(inst14) >= 6:
+        if token_type == TokenType.PAYEE and len(inst14) >= 6:
             score += 0.45
             reasons.append(f"PAYEE_SEEN_IN_{len(inst14)}_INSTITUTIONS_14D")
 
-        if token_type == "image" and len(unique_institutions(e30)) >= 2:
+        if token_type == TokenType.IMAGE and len(unique_institutions(e30)) >= 2:
             score += 0.65
             reasons.append("SAME_IMAGE_HASH_SEEN_AT_MULTIPLE_INSTITUTIONS")
 
-        if token_type == "device" and fraud30 > 0:
+        if token_type == TokenType.DEVICE and fraud30 > 0:
             score += 0.60
             reasons.append("DEVICE_LINKED_TO_PRIOR_CONFIRMED_FRAUD")
 
         if fraud30 >= 2:
             score += 0.35
-            reasons.append(f"{token_type.upper()}_TOKEN_HAS_{fraud30}_PRIOR_FRAUDS_30D")
+            reasons.append(f"{token_type.value}_TOKEN_HAS_{fraud30}_PRIOR_FRAUDS_30D")
 
         if len(inst14) >= 3:
             score += 0.20
-            reasons.append(f"{token_type.upper()}_CROSS_INSTITUTION_SPREAD")
+            reasons.append(f"{token_type.value}_CROSS_INSTITUTION_SPREAD")
 
         return {
             "score": clamp(score),
@@ -170,7 +200,8 @@ class NetworkRiskAggregator:
     def payor_payee_relationship_risk(
         payor_token: Optional[str],
         payee_token: Optional[str],
-        now: datetime
+        now: datetime,
+        db: Session
     ) -> Dict[str, Any]:
 
         if not payor_token or not payee_token:
@@ -180,7 +211,7 @@ class NetworkRiskAggregator:
                 "counts": {}
             }
 
-        events = RELATION_INDEX.get((payor_token, payee_token), [])
+        events = get_relation_events(payor_token, payee_token, db=db)
         e30 = recent(events, now, 30)
 
         fraud30 = count_frauds(e30)
@@ -217,7 +248,8 @@ class NetworkRiskAggregator:
     def bank_flow_risk(
         deposit_bank: str,
         clearing_bank: Optional[str],
-        now: datetime
+        now: datetime,
+        db: Session
     ) -> Dict[str, Any]:
 
         if not clearing_bank:
@@ -227,7 +259,7 @@ class NetworkRiskAggregator:
                 "counts": {}
             }
 
-        events = BANK_FLOW_INDEX.get((deposit_bank, clearing_bank), [])
+        events = get_bank_flow_events(deposit_bank, clearing_bank, db=db)
         e30 = recent(events, now, 30)
 
         total30 = len(e30)
@@ -265,35 +297,37 @@ class NetworkRiskAggregator:
 class ConsortiumFeatureService:
 
     @staticmethod
-    def compute_features(event: ConsortiumEventRequest) -> Dict[str, Any]:
+    def compute_features(event: ConsortiumEventRequest, db: Session) -> Dict[str, Any]:
         now = event.depositTimestamp
 
         token_results = []
 
         token_inputs = [
-            ("payee", event.payeeToken),
-            ("payor", event.payorToken),
-            ("account", event.accountToken),
-            ("device", event.deviceToken),
-            ("image", event.imageFingerprint),
+            (TokenType.PAYEE, event.payeeToken),
+            (TokenType.PAYOR, event.payorToken),
+            (TokenType.ACCOUNT, event.accountToken),
+            (TokenType.DEVICE, event.deviceToken),
+            (TokenType.IMAGE, event.imageFingerprint),
         ]
 
         for token_type, token in token_inputs:
             if token:
                 token_results.append(
-                    NetworkRiskAggregator.token_frequency_risk(token_type, token, now)
+                    NetworkRiskAggregator.token_frequency_risk(token_type, token, now, db)
                 )
 
         relationship_result = NetworkRiskAggregator.payor_payee_relationship_risk(
             event.payorToken,
             event.payeeToken,
-            now
+            now,
+            db
         )
 
         bank_flow_result = NetworkRiskAggregator.bank_flow_risk(
             event.institutionId,
             event.clearingInstitutionId,
-            now
+            now,
+            db
         )
 
         return {
@@ -433,7 +467,7 @@ def compute_image_fingerprint(event: ConsortiumEventRequest):
 
 def consortium_process_event(event: ConsortiumEventRequest, db: Session) -> ConsortiumScoreResponse:
     compute_image_fingerprint(event)
-    features = ConsortiumFeatureService.compute_features(event)
+    features = ConsortiumFeatureService.compute_features(event, db)
     result = CrossInstitutionEvidenceService.explain(features)
 
     TokenLinkService.index_event(event, db)

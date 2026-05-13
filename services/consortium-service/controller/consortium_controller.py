@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+import asyncio
 
-from db.consortium_db_handler import get_db_session
-from dtos.consortium_dtos import ConsortiumEventRequest, ConsortiumScoreResponse, FraudDisposition
-from service.consortium_service import consortium_process_event, TOKEN_INDEX, RELATION_INDEX, BANK_FLOW_INDEX
+from fastapi import APIRouter
+
+from db.connection.consortium_db_connection import get_db_session_from_context
+from dtos.consortium_dtos import ConsortiumEventRequest, ConsortiumScoreResponse
+from service.consortium_service import consortium_process_event
 
 router = APIRouter(prefix="/consortium", tags=["consortium"])
 
@@ -12,9 +13,10 @@ router = APIRouter(prefix="/consortium", tags=["consortium"])
 # -----------------------------
 
 @router.post("/match", response_model=ConsortiumScoreResponse)
-def match(event: ConsortiumEventRequest, db: Session = Depends(get_db_session)):
+async def match(event: ConsortiumEventRequest):
     print("match api called with event:", event)
-    return consortium_process_event(event, db)
+    with get_db_session_from_context() as db:
+        return await asyncio.to_thread(consortium_process_event, event, db)
 
 @router.post("/fraud-decision")
 def fraud_decision(event_id: str, disposition: str):
@@ -33,7 +35,7 @@ def health():
 def stats():
     return {
         "eventCount": 0,#len(EVENTS),
-        "tokenIndexSize": len(TOKEN_INDEX),
-        "relationshipIndexSize": len(RELATION_INDEX),
-        "bankFlowIndexSize": len(BANK_FLOW_INDEX),
+        "tokenIndexSize": 0,#len(TOKEN_INDEX),
+        "relationshipIndexSize": 0,#len(RELATION_INDEX),
+        "bankFlowIndexSize": 0,#len(BANK_FLOW_INDEX),
     }

@@ -5,7 +5,7 @@ import uvicorn
 from fastapi import FastAPI
 from service.consortium_kafka_handler import consortium_lifespan
 from controller.consortium_controller import router
-from db.consortium_db_handler import create_all_schema
+from db.connection.consortium_db_connection import create_all_schema
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
