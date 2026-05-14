@@ -1,94 +1,18 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
-import time
-import numpy as np
 import os
-import cv2
 import re
-from PIL import Image
+import time
+from typing import Dict, Any, List, Optional
+
+import cv2
 import imagehash
+import numpy as np
 import pytesseract
+from PIL import Image
+from sqlalchemy.orm import Session
 
-import asyncio
-from contextlib import asynccontextmanager
-from services.commons.kafka_event_handler import KafkaEventHandler
-from services.commons.kafka_completion import CompletionReporter
-from aiokafka import AIOKafkaProducer
+from db.repo.image_repositories import get_recent_image_hashes, upsert_image_fingerprint
+from dtos.image_dtos import ImageAnalysisRequest, ImageAnalysisResponse
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    stop_event = asyncio.Event()
-
-    bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-    completion_topic = os.getenv("KAFKA_COMPLETION_TOPIC", "check.deposit.service.completed")
-
-    producer = AIOKafkaProducer(bootstrap_servers=bootstrap)
-    await producer.start()
-    reporter = CompletionReporter(producer, topic=completion_topic, service_name="image")
-
-    class ImageKafkaHandler(KafkaEventHandler):
-        async def handle_event(self, event: dict):
-            print(f"Received {self.name} event: {event}")
-            start = time.time()
-            event_id = str(event.get("eventId", ""))
-            try:
-                req = ImageAnalysisRequest.model_validate(event)
-                # Avoid blocking the asyncio loop (opencv / OCR are CPU-heavy)
-                imageServiceScoreResponse = await asyncio.to_thread(image_service_process_event, req)
-                await reporter.report_success(
-                    event_id=event_id or "UNKNOWN",
-                    latency_ms=int((time.time() - start) * 1000),
-                    details=imageServiceScoreResponse.model_dump(),
-                )
-            except Exception as e:
-                await reporter.report_failure(
-                    event_id=event_id or "UNKNOWN",
-                    latency_ms=int((time.time() - start) * 1000),
-                    error=str(e),
-                )
-
-    image_kafka_event_handler = ImageKafkaHandler(
-        "image_kafka",
-        "check.deposit.created",
-        group_id="image-fraud-service",
-        bootstrap_servers=bootstrap,
-    )
-    image_kafka_task = asyncio.create_task(
-        image_kafka_event_handler.run_consumer(stop_event)
-    )
-
-    try:
-        yield
-
-    finally:
-        stop_event.set()
-        await image_kafka_task
-        await producer.stop()
-
-app = FastAPI(title="image-service", lifespan=lifespan)
-
-class ImageAnalysisRequest(BaseModel):
-    eventId: str
-    amount: float
-    imageFrontUri: str
-    imageBackUri: Optional[str] = None
-
-
-class ImageAnalysisResponse(BaseModel):
-    image_duplicate_score: float
-    ocr_amount_match: bool
-    layout_anomaly_score: float
-    font_anomaly_score: float
-    signature_presence_score: float
-    endorsement_score: float
-    reasonCodes: List[str]
-    explanation: Dict[str, Any]
-    latencyMs: int
-
-# In-memory hash store for MVP
-# Replace with PostgreSQL table: image_fingerprint
-IMAGE_HASH_MEMORY: Dict[str, str] = {}
 
 def load_image(path: str) -> np.ndarray:
     if path.startswith("file://"):
@@ -103,34 +27,37 @@ def load_image(path: str) -> np.ndarray:
 
     return img
 
-def perceptual_hash_score(image_path: str, event_id: str) -> Dict[str, Any]:
+def perceptual_hash_score(image_path: str, event_id: str, db: Session) -> Dict[str, Any]:
     pil_img = Image.open(image_path).convert("L")
 
     phash = imagehash.phash(pil_img)    # compact "fingerprint" of an image by analyzing its visual features
     dhash = imagehash.dhash(pil_img)    # captures gradient information by comparing adjacent pixel values, useful for detecting subtle alterations
 
-    current_hash = str(phash)
+    phash_hex = str(phash)
+    dhash_hex = str(dhash)
 
     duplicate_score = 0.0
     closest_event = None
     closest_distance = 999
 
-    for old_event, old_hash in IMAGE_HASH_MEMORY.items():
-        distance = phash - imagehash.hex_to_hash(old_hash)
+    candidates = get_recent_image_hashes(limit=500, within_days=90, db=db)
+
+    for row in candidates:
+        distance = phash - imagehash.hex_to_hash(str(row.phash))
 
         if distance < closest_distance:
             closest_distance = distance
-            closest_event = old_event
+            closest_event = row.event_id
 
         # pHash distance 0-5 is usually very similar
         if distance <= 5:
             duplicate_score = max(duplicate_score, 1.0 - (distance / 10.0))
 
-    IMAGE_HASH_MEMORY[event_id] = current_hash
+    upsert_image_fingerprint(event_id, phash_hex, dhash_hex, db)
 
     return {
-        "phash": str(phash),
-        "dhash": str(dhash),
+        "phash": phash_hex,
+        "dhash": dhash_hex,
         "duplicate_score": float(round(duplicate_score, 4)),
         "closest_event": closest_event,
         "closest_distance": int(closest_distance) if closest_event else None
@@ -322,7 +249,7 @@ def endorsement_score(back_img: Optional[np.ndarray]) -> float:
 #         latencyMs=int((time.time() - start) * 1000)
 #     )
 
-def image_service_process_event(event: ImageAnalysisRequest) -> ImageAnalysisResponse:
+def image_process_event(event: ImageAnalysisRequest, db: Session) -> ImageAnalysisResponse:
     start = time.time()
     reasons = []
 
@@ -335,7 +262,7 @@ def image_service_process_event(event: ImageAnalysisRequest) -> ImageAnalysisRes
         except Exception:
             reasons.append("BACK_IMAGE_UNREADABLE")
 
-    hash_result = perceptual_hash_score(event.imageFrontUri, event.eventId)
+    hash_result = perceptual_hash_score(event.imageFrontUri, event.eventId, db)
 
     if hash_result["duplicate_score"] >= 0.8:
         reasons.append("DUPLICATE_OR_NEAR_DUPLICATE_IMAGE")
@@ -392,17 +319,3 @@ def image_service_process_event(event: ImageAnalysisRequest) -> ImageAnalysisRes
         },
         latencyMs=latency
     )
-
-@app.post("/analyze", response_model=ImageAnalysisResponse)
-def handle(req: ImageAnalysisRequest):
-    response = image_service_process_event(req)
-
-    return response
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("image_service_app:app", host="0.0.0.0", port=8082)
