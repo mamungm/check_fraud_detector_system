@@ -1,7 +1,7 @@
-package com.research.fraud.service;
+package com.research.rules_service.service;
 
-import com.research.fraud.db.entity.DepositEvent;
-import com.research.fraud.db.repo.DepositEventRepository;
+import com.research.rules_service.db.entity.DepositEvent;
+import com.research.rules_service.db.repo.DepositEventRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;

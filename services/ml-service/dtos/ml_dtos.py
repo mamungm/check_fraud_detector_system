@@ -60,23 +60,23 @@ class CombinedScoreMLRequest(BaseModel):
 
     institutionId: str      # From consortium_events table -> institutionId
 
-    amount: float           # From consortium_events table -> amount
+    amount: float      # From consortium_events table -> amount
     channel: str            # From consortium_events table -> channel
 
     account_deposit_count_7d: float = 0     # Query consortium_events where accountToken & depositTimestamp in last 7d
     account_avg_amount_30d: float = 0       # Query consortium_events where accountToken & depositTimestamp in last 30d, avg(amount)
     account_new_device: float = 0           # Query consortium_events to check if the deviceToken is new (first appearance in DB)
 
-    payee_seen_institutions_14d: float = 0   # Query consortium_events where payeeToken & depositTimestamp in last 14d, count(distinct institutionId)
-    payee_fraud_count_30d: float = 0
-    device_fraud_count_30d: float = 0
+    payee_seen_institutions_14d: float = 0   # ConsortiumScoreResponse.supportingLinkedCounts["payee"]["institutionCount14d"]
+    payee_fraud_count_30d: float = 0         # ConsortiumScoreResponse.supportingLinkedCounts["payee"]["fraudCount30d"]
+    device_fraud_count_30d: float = 0        # ConsortiumScoreResponse.supportingLinkedCounts["device"]["fraudCount30d"]
 
-    image_duplicate_score: float = 0
-    ocr_amount_match: float = 1
-    layout_anomaly_score: float = 0
-    font_anomaly_score: float = 0
-    signature_presence_score: float = 1
-    endorsement_score: float = 1
+    image_duplicate_score: float = 0         # ImageAnalysisResponse.image_duplicate_score
+    ocr_amount_match: float = 1              # ImageAnalysisResponse.ocr_amount_match (bool → float: 1.0 or 0.0)
+    layout_anomaly_score: float = 0          # ImageAnalysisResponse.layout_anomaly_score
+    font_anomaly_score: float = 0            # ImageAnalysisResponse.font_anomaly_score
+    signature_presence_score: float = 1      # ImageAnalysisResponse.signature_presence_score
+    endorsement_score: float = 1             # ImageAnalysisResponse.endorsement_score
 
     rule_hit_count: float = 0
     critical_rule_hit_count: float = 0
