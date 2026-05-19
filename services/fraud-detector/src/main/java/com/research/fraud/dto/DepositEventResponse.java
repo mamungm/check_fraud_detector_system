@@ -6,6 +6,7 @@ import java.util.UUID;
 
 @Builder
 public record DepositEventResponse(
-        UUID eventId
+        UUID eventId,
+        String message
 ) {
 }

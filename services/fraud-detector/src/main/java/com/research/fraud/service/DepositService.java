@@ -40,6 +40,7 @@ public class DepositService {
 
         return DepositEventResponse.builder()
                 .eventId(depositEvent.getEventId())
+                .message("Created a deposit request")
                 .build();
     }
 }

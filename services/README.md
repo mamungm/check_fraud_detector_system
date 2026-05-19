@@ -11,3 +11,18 @@ Full Cheque fraud detection system follows a microservices architecture with the
 ## Sequence Diagram
 
 <img src="resources/image/sequence_diagram.png" alt="Sequence Diagram" width="1920">
+
+## Microservice/Kafka Commands & Responses
+```python
+Consortium_Service_CMD
+Consortium_Service_Response
+
+Image_Service_CMD
+Image_Service_Response
+
+Rule_based_Service_CMD
+Rule_based_Service_Response
+
+ML_Service_CMD
+ML_Service_Response
+```
