@@ -220,3 +220,4 @@ __marimo__/
 /feature_pipeline/build_training_dataset.py
 /training-data/check_fraud_training.csv
 /services/ml-service/models/
+/services/resources/.$system_architecture.drawio.bkp
