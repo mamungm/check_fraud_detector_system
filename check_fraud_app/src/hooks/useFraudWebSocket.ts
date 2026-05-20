@@ -1,54 +1,76 @@
-import { useState, useEffect } from 'react';
+import {useState, useEffect, useRef} from 'react';
+import {Client} from "@stomp/stompjs";
 
 export const useFraudWebSocket = () => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [lastMessage, setLastMessage] = useState<string | null>(null);
+    const [isConnected, setIsConnected] = useState(false);
+    const [lastMessage, _] = useState<any>(null);
+    const clientRef = useRef<Client | null>(null);
 
-  useEffect(() => {
-    const socket = new WebSocket('ws://localhost:8080/gs-guide-websocket');
+    useEffect(() => {
+        const client = new Client({
+            brokerURL: "ws://localhost:8080/ws",
 
-    socket.onopen = () => {
-      console.log('WebSocket connected');
-      setIsConnected(true);
+            debug: function (str: any) {
+                console.log(str);
+            },
 
-      // Send STOMP CONNECT frame
-      const connectFrame = `CONNECT
-accept-version:1.1,1.0
-host:localhost
+            reconnectDelay: 5000,
 
-\0`;
-      socket.send(connectFrame);
+            onConnect: function () {
+                console.log("CONNECTED");
+                setIsConnected(true);
+
+                client.subscribe("/topic/deposit_verification", (message: { body: any; }) => {
+                    console.log(message.body);
+                    // setLastMessage(message.body)
+                });
+            },
+
+            onStompError: function (frame: any) {
+                console.log(frame);
+            },
+
+            onWebSocketError: function (error: any) {
+                console.log(error);
+            },
+        });
+
+        clientRef.current = client;
+
+        client.activate();
+    }, []);
+
+    const publishDepositRequest = () => {
+        if (!clientRef.current || !clientRef.current.connected) {
+            console.log("WebSocket not connected");
+            return;
+        }
+
+        clientRef.current.publish({
+            destination: "/app/deposit_request",
+            body: JSON.stringify({
+                institutionId: "22222222-2222-4222-8222-222222222222",
+                clearingInstitutionId:
+                    "22222222-2222-4222-8223-222222222222",
+                channel: "mobile",
+                depositTimestamp: "2026-04-24T10:30:00-02:30",
+                amount: 7255.0,
+                currency: "CAD",
+                accountToken: "acct_demo_hmac_token",
+                payeeToken: "payee_demo_hmac_token",
+                payorToken: "payor_demo_hmac_token",
+                deviceToken: "device_demo_NEW",
+                region: "OUT_OF_REGION",
+                checkSerialHash: "serial_hmac_hash",
+                micrRoutingHash: "routing_hmac_hash",
+                micrAccountHash: "micr_account_hmac_hash",
+                imageFrontUri:
+                    "/path/front.png",
+                imageBackUri:
+                    "/path/back.png",
+            }),
+        });
     };
 
-    socket.onmessage = (event) => {
-      console.log('WS message:', event.data);
-
-      // Parse STOMP frame if needed, or pass raw message
-      if (event.data.includes('MESSAGE')) {
-        // Extract body from STOMP MESSAGE frame
-        const bodyStart = event.data.indexOf('\n\n') + 2;
-        const bodyEnd = event.data.lastIndexOf('\0');
-        const body = event.data.substring(bodyStart, bodyEnd);
-        setLastMessage(body);
-      } else {
-        setLastMessage(event.data);
-      }
-    };
-
-    socket.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setIsConnected(false);
-    };
-
-    socket.onclose = () => {
-      console.log('WebSocket closed');
-      setIsConnected(false);
-    };
-
-    return () => {
-      socket.close();
-    };
-  }, []);
-
-  return { isConnected, lastMessage };
+    return {isConnected, lastMessage, publishDepositRequest};
 };
