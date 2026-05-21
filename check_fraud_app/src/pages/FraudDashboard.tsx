@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react';
-import {Layout, Card, Row, Col, Statistic, Modal, Tag, Progress, Empty, Button} from 'antd';
+import {Layout, Card, Row, Col, Statistic, Tag, Progress, Empty, Button, Modal, Form} from 'antd';
 import {
     LineChart,
     Line,
@@ -17,6 +17,7 @@ import {useFraudWebSocket} from '../hooks/useFraudWebSocket';
 import getRiskColor from "../config/ColorConfig.ts";
 import type {FraudEvent} from "../models/FraudEvent.ts";
 import {FraudEventTableComponent} from "./FraudEventTableComponent.tsx";
+import {DepositEventCreateComponent} from "./DepositEventCreateComponent.tsx";
 
 const {Header, Content} = Layout;
 
@@ -26,6 +27,9 @@ export const FraudDashboard: React.FC = () => {
     const [modalVisible, setModalVisible] = useState(false);
     const [loading, _] = useState(false);
     const {isConnected, lastMessage, publishDepositRequest} = useFraudWebSocket();
+
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [depositEventCreateForm] = Form.useForm();
 
     // Handle incoming WebSocket messages
     useEffect(() => {
@@ -38,6 +42,19 @@ export const FraudDashboard: React.FC = () => {
             }
         }
     }, [lastMessage]);
+
+    const showModal = () => {
+        setIsModalOpen(true);
+    };
+
+    const handleSubmit = () => {
+        // setIsModalOpen(false);
+        depositEventCreateForm.submit();
+    };
+
+    const handleCancel = () => {
+        setIsModalOpen(false);
+    };
 
     const handleRowClick = (record: FraudEvent) => {
         setSelectedEvent(record);
@@ -166,12 +183,33 @@ export const FraudDashboard: React.FC = () => {
 
                 {/* Events Table */}
                 <Card title="Real-Time Fraud Events" loading={loading} extra={
-                    <Button
-                        type="primary"
-                        onClick={publishDepositRequest}
-                    >
-                        Post a clearing cheque
-                    </Button>
+                    <div>
+                        <Button
+                            type="primary"
+                            onClick={showModal}
+                        >
+                            Post a clearing cheque
+                        </Button>
+                        <Modal
+                            title="Basic Modal"
+                            closable={{'aria-label': 'Custom Close Button'}}
+                            okText={"Submit"}
+                            width={{
+                                xs: '90%',
+                                sm: '80%',
+                                md: '70%',
+                                lg: '60%',
+                                xl: '800px',
+                                xxl: '800px',
+                            }}
+                            open={isModalOpen}
+                            onOk={handleSubmit}
+                            onCancel={handleCancel}
+                        >
+                            <DepositEventCreateComponent form={depositEventCreateForm}
+                                                         publishDepositRequest={publishDepositRequest}/>
+                        </Modal>
+                    </div>
                 }>
                     {events.length === 0 ? (
                         <Empty description="No events yet. Waiting for data..."/>
