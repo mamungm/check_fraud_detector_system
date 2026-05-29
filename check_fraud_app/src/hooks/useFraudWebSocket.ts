@@ -8,6 +8,9 @@ export const useFraudWebSocket = () => {
     const clientRef = useRef<Client | null>(null);
 
     useEffect(() => {
+        if (clientRef.current) {
+            return;
+        }
         const client = new Client({
             brokerURL: "ws://localhost:8080/ws",
 
@@ -21,7 +24,7 @@ export const useFraudWebSocket = () => {
                 console.log("CONNECTED");
                 setIsConnected(true);
 
-                client.subscribe("/topic/deposit_verification", (message: { body: any; }) => {
+                client.subscribe("/topic/single_service_completed", (message: { body: any; }) => {
                     console.log(message.body);
                     // setLastMessage(message.body)
                 });
@@ -37,8 +40,19 @@ export const useFraudWebSocket = () => {
         });
 
         clientRef.current = client;
-
         client.activate();
+
+        return () => {
+            try {
+                if (clientRef.current) {
+                    clientRef.current.deactivate(); // returns a Promise
+                }
+            } catch (e) {
+                console.warn("deactivate error", e);
+            } finally {
+                clientRef.current = null;
+            }
+        };
     }, []);
 
     const publishDepositRequest = (depositEvent: DepositEvent) => {

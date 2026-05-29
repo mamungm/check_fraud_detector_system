@@ -18,34 +18,35 @@ class MLKafkaHandler(KafkaEventHandler):
     async def handle_event(self, event: dict):
         print(f"Received {self.name} event: {event}")
         start = time.time()
-        event_id = str(event.get("eventId", ""))
-        try:
-            combined_score_request_event = CombinedScoreRequest.model_validate(event)
-            combinedScoreResponse = combined_process_event(combined_score_request_event)
-            await self.reporter.report_success(
-                event_id=event_id or "UNKNOWN",
-                latency_ms=int((time.time() - start) * 1000),
-                details=combinedScoreResponse.model_dump(),
-            )
-            print(f"Processed {self.name} event {event_id} successfully in {int((time.time() - start) * 1000)} ms. "
-                  f"response = {json.dumps(combinedScoreResponse.model_dump(), indent=4)}")
-        except Exception as e:
-            await self.reporter.report_failure(
-                event_id=event_id or "UNKNOWN",
-                latency_ms=int((time.time() - start) * 1000),
-                error=str(e),
-            )
+        if self.name == "ml_kafka_ML_Service_CMD":
+            event_id = str(event.get("eventId", ""))
+            try:
+                combined_score_request_event = CombinedScoreRequest.model_validate(event)
+                combinedScoreResponse = combined_process_event(combined_score_request_event)
+                await self.reporter.report_success(
+                    event_id=event_id or "UNKNOWN",
+                    latency_ms=int((time.time() - start) * 1000),
+                    details=combinedScoreResponse.model_dump(),
+                )
+                print(f"Processed {self.name} event {event_id} successfully in {int((time.time() - start) * 1000)} ms. "
+                      f"response = {json.dumps(combinedScoreResponse.model_dump(), indent=4)}")
+            except Exception as e:
+                await self.reporter.report_failure(
+                    event_id=event_id or "UNKNOWN",
+                    latency_ms=int((time.time() - start) * 1000),
+                    error=str(e),
+                )
 
 
 async def ml_lifespan(stop_event: asyncio.Event):
     bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-    completion_topic = os.getenv("KAFKA_COMPLETION_TOPIC", "check.deposit.ml.service.completed")
+    completion_topic = os.getenv("KAFKA_COMPLETION_TOPIC", "ML_Service_Response")
 
     producer = AIOKafkaProducer(bootstrap_servers=bootstrap)
     await producer.start()
     reporter = CompletionReporter(producer, topic=completion_topic, service_name="image")
 
-    topics = ["check.deposit.ml.ready"]
+    topics = ["ML_Service_CMD"]
     handlers = [
         MLKafkaHandler(
             f"ml_kafka_{topic}",

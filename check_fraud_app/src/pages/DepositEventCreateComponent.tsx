@@ -23,7 +23,7 @@ export const DepositEventCreateComponent: React.FC<DepositEventCreateComponentPr
             institutionId: values.institutionId,
             clearingInstitutionId: values.clearingInstitutionId,
             channel: values.channel,
-            depositTimestamp: values.depositTimestamp.toISOString(),
+            depositTimestamp: values.depositTimestamp,
             amount: Number(values.amount),
             currency: values.currency,
 

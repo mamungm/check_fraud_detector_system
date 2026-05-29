@@ -18,6 +18,7 @@ import getRiskColor from "../config/ColorConfig.ts";
 import type {FraudEvent} from "../models/FraudEvent.ts";
 import {FraudEventTableComponent} from "./FraudEventTableComponent.tsx";
 import {DepositEventCreateComponent} from "./DepositEventCreateComponent.tsx";
+import {FraudEventService} from "../services/FraudEventService.ts";
 
 const {Header, Content} = Layout;
 
@@ -25,7 +26,7 @@ export const FraudDashboard: React.FC = () => {
     const [events, setEvents] = useState<FraudEvent[]>([]);
     const [selectedEvent, setSelectedEvent] = useState<FraudEvent | null>(null);
     const [modalVisible, setModalVisible] = useState(false);
-    const [loading, _] = useState(false);
+    const [loading, setLoading] = useState(false);
     const {isConnected, lastMessage, publishDepositRequest} = useFraudWebSocket();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -42,6 +43,23 @@ export const FraudDashboard: React.FC = () => {
             }
         }
     }, [lastMessage]);
+
+    useEffect(() => {
+        getAllEvents();
+    }, []);
+
+    const getAllEvents = async () => {
+        setLoading(true);
+        try {
+            const data = await FraudEventService.getAllEvents();
+            console.info("Data from server = ", data)
+            setEvents(data);
+        } catch (error) {
+            console.error('Error fetching events:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const showModal = () => {
         setIsModalOpen(true);
@@ -87,7 +105,7 @@ export const FraudDashboard: React.FC = () => {
         <Layout style={{minHeight: '100vh'}}>
             <Header style={{background: '#001529', color: 'white', padding: '0 24px'}}>
                 <h1 style={{color: 'white', margin: 0}}>
-                    🔒 Fraud Detection Dashboard
+                    Fraud Detection Dashboard
                     {isConnected && <Tag color="green" style={{marginLeft: '16px'}}>Live</Tag>}
                     {!isConnected && <Tag color="red" style={{marginLeft: '16px'}}>Offline</Tag>}
                 </h1>

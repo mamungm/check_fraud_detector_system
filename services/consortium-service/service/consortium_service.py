@@ -63,10 +63,10 @@ def recent(events: List[ConsortiumEventRequest], now: datetime, days: int) -> Li
     return [
         e for e in events
         if (
-            e.depositTimestamp.replace(tzinfo=timezone.utc)
-            if e.depositTimestamp.tzinfo is None
-            else e.depositTimestamp
-        ) >= cutoff
+               e.depositTimestamp.replace(tzinfo=timezone.utc)
+               if e.depositTimestamp.tzinfo is None
+               else e.depositTimestamp
+           ) >= cutoff
     ]
 
 
@@ -107,7 +107,9 @@ class TokenLinkService:
                         event_id=event.eventId,
                         institution_id=event.institutionId,
                         deposit_timestamp=event.depositTimestamp,
-                        fraud_disposition=event.fraudDisposition.value if hasattr(event.fraudDisposition, "value") else str(event.fraudDisposition),
+                        fraud_disposition=event.fraudDisposition.value if hasattr(event.fraudDisposition,
+                                                                                  "value") else str(
+                            event.fraudDisposition),
                     ), db)
 
         if event.payorToken and event.payeeToken:
@@ -184,7 +186,7 @@ class NetworkRiskAggregator:
             "score": clamp(score),
             "reasons": reasons,
             "counts": {
-                "tokenType": token_type,
+                "tokenType": str(token_type.value).lower(),
                 "tokenPreview": token_preview(token),
                 "totalAppearances": len(events),
                 "appearances7d": len(e7),
@@ -198,10 +200,10 @@ class NetworkRiskAggregator:
 
     @staticmethod
     def payor_payee_relationship_risk(
-        payor_token: Optional[str],
-        payee_token: Optional[str],
-        now: datetime,
-        db: Session
+            payor_token: Optional[str],
+            payee_token: Optional[str],
+            now: datetime,
+            db: Session
     ) -> Dict[str, Any]:
 
         if not payor_token or not payee_token:
@@ -246,10 +248,10 @@ class NetworkRiskAggregator:
 
     @staticmethod
     def bank_flow_risk(
-        deposit_bank: str,
-        clearing_bank: Optional[str],
-        now: datetime,
-        db: Session
+            deposit_bank: str,
+            clearing_bank: Optional[str],
+            now: datetime,
+            db: Session
     ) -> Dict[str, Any]:
 
         if not clearing_bank:
@@ -401,6 +403,7 @@ class CrossInstitutionEvidenceService:
             }
         }
 
+
 def compute_phash(image_uri: str) -> str:
     """
     Supports:
@@ -440,6 +443,7 @@ def compute_phash(image_uri: str) -> str:
             img = img.convert("L")
 
             return str(imagehash.phash(img))
+
 
 def compute_image_fingerprint(event: ConsortiumEventRequest):
     front_phash = compute_phash(event.imageFrontUri) if event.imageFrontUri else None

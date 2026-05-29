@@ -17,11 +17,10 @@ class ImageKafkaHandler(KafkaEventHandler):
         super().__init__(name, topic, bootstrap_servers, group_id)
         self.reporter = reporter
 
-
     async def handle_event(self, event: dict):
         print(f"Received {self.name} event:", json.dumps(event, indent=4))
         start = time.time()
-        if self.name == "image_kafka_check.deposit.created":
+        if self.name == "image_kafka_Image_Service_CMD":
             event_id = str(event.get("eventId", ""))
             try:
                 req = ImageAnalysisRequest.model_validate(event)
@@ -46,13 +45,13 @@ class ImageKafkaHandler(KafkaEventHandler):
 
 async def image_lifespan(stop_event: asyncio.Event):
     bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-    completion_topic = os.getenv("KAFKA_COMPLETION_TOPIC", "check.deposit.service.completed")
+    completion_topic = os.getenv("KAFKA_COMPLETION_TOPIC", "Image_Service_Response")
 
     producer = AIOKafkaProducer(bootstrap_servers=bootstrap)
     await producer.start()
     reporter = CompletionReporter(producer, topic=completion_topic, service_name="image")
 
-    topics = ["check.deposit.created", "check.deposit.fraud.decision"]
+    topics = ["Image_Service_CMD", "check.deposit.fraud.decision"]
     handlers = [
         ImageKafkaHandler(
             f"image_kafka_{topic}",

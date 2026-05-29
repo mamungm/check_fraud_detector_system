@@ -1,0 +1,12 @@
+package com.research.fraud.statemachine;
+
+public enum FraudEvent {
+    START,
+    IMAGE_RESPONSE_RECEIVED,
+    CONSORTIUM_RESPONSE_RECEIVED,
+    BOTH_DEPENDENCIES_READY,
+    ML_RESPONSE_RECEIVED,
+    RULE_RESPONSE_RECEIVED,
+    ALL_COMPLETED,
+    FAILURE
+}

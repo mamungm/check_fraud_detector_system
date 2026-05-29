@@ -57,8 +57,10 @@ public class DepositEvent {
 
     private String imageBackUri;
 
-    @Builder.Default
-    private String status = "RECEIVED";
+    @Enumerated(EnumType.STRING)
+    private Status status;
+
+    private boolean fraudLabel = false;
 
     private OffsetDateTime createdAt;
 
@@ -78,5 +80,12 @@ public class DepositEvent {
         mobile,
         ATM,
         branch
+    }
+
+    // --- Enum for status ---
+    public enum Status {
+        RECEIVED,
+        SCORED,
+        SCORE_FAILED
     }
 }

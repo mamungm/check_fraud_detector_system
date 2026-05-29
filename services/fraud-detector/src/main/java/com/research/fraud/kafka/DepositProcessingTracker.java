@@ -2,6 +2,7 @@ package com.research.fraud.kafka;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.research.fraud.db.entity.DepositEvent;
 import com.research.fraud.db.repo.DepositEventRepository;
 import com.research.fraud.dto.ServiceCompletionEvent;
 import org.slf4j.Logger;
@@ -76,7 +77,7 @@ public class DepositProcessingTracker {
 
             // Persist a coarse lifecycle status on the deposit event (MVP)
             depositEventRepository.findById(evt.eventId()).ifPresent(depositEvent -> {
-                depositEvent.setStatus(allOk ? "ASYNC_ENRICHED" : "ASYNC_FAILED");
+                depositEvent.setStatus(allOk ? DepositEvent.Status.SCORED : DepositEvent.Status.SCORE_FAILED);
                 depositEventRepository.save(depositEvent);
             });
 

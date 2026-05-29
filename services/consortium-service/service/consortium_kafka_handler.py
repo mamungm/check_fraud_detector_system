@@ -19,7 +19,6 @@ class ConsortiumKafkaHandler(KafkaEventHandler):
         super().__init__(name, topic, bootstrap_servers, group_id)
         self.reporter = reporter
 
-
     async def handle_event(self, event: dict):
         print(f"Received {self.name} event:", json.dumps(event, indent=4))
         start = time.time()
@@ -36,7 +35,7 @@ class ConsortiumKafkaHandler(KafkaEventHandler):
                     error=str(e),
                 )
 
-        elif self.name == "consortium_kafka_check.deposit.created":
+        elif self.name == "consortium_kafka_Consortium_Service_CMD":
             event_id = str(event.get("eventId", ""))
             try:
                 req = ConsortiumEventRequest.model_validate(event)
@@ -61,13 +60,13 @@ class ConsortiumKafkaHandler(KafkaEventHandler):
 
 async def consortium_lifespan(stop_event: asyncio.Event):
     bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-    completion_topic = os.getenv("KAFKA_COMPLETION_TOPIC", "check.deposit.service.completed")
+    completion_topic = os.getenv("KAFKA_COMPLETION_TOPIC", "Consortium_Service_Response")
 
     producer = AIOKafkaProducer(bootstrap_servers=bootstrap)
     await producer.start()
     reporter = CompletionReporter(producer, topic=completion_topic, service_name="consortium")
 
-    topics = ["check.deposit.created", "check.deposit.fraud.decision"]
+    topics = ["Consortium_Service_CMD", "check.deposit.fraud.decision"]
     handlers = [
         ConsortiumKafkaHandler(
             f"consortium_kafka_{topic}",

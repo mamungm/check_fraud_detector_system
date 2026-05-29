@@ -15,8 +15,7 @@ export const FraudEventTableComponent: React.FC<FraudEventTableProps> = ({events
             title: 'Event ID',
             dataIndex: 'eventId',
             key: 'eventId',
-            width: '12%',
-            ellipsis: true,
+            width: '10%'
         },
         {
             title: 'Institution',
@@ -28,14 +27,14 @@ export const FraudEventTableComponent: React.FC<FraudEventTableProps> = ({events
             title: 'Amount',
             dataIndex: 'amount',
             key: 'amount',
-            render: (amount: number) => `$${amount.toFixed(2)}`,
-            width: '10%',
+            render: (amount: number) => amount ? `$${amount.toFixed(2)}` : '',
+            width: '8%',
         },
         {
             title: 'Channel',
             dataIndex: 'channel',
             key: 'channel',
-            width: '8%',
+            width: '6%',
         },
         {
             title: 'Fraud Score',
@@ -49,14 +48,28 @@ export const FraudEventTableComponent: React.FC<FraudEventTableProps> = ({events
                     strokeColor={getRiskColor(score)}
                 />
             ),
-            width: '12%',
+            width: '8%',
         },
         {
             title: 'Risk Band',
             dataIndex: 'calibratedRiskBand',
             key: 'calibratedRiskBand',
             render: (band: string) => getRiskTag(band),
-            width: '10%',
+            width: '8%',
+        },
+        {
+            title: 'Status',
+            dataIndex: 'status',
+            key: 'status',
+            width: '8%'
+        },
+        {
+            title: 'Created At',
+            dataIndex: 'createdAt',
+            key: 'createdAt',
+            render: (ts: string) => new Date(ts).toLocaleString(),
+            width: '13%',
+            ellipsis: true,
         },
         {
             title: 'Action',
@@ -72,16 +85,8 @@ export const FraudEventTableComponent: React.FC<FraudEventTableProps> = ({events
                     <span>{icons[action] || action}</span>
                 );
             },
-            width: '12%',
-        },
-        {
-            title: 'Timestamp',
-            dataIndex: 'timestamp',
-            key: 'timestamp',
-            render: (ts: string) => new Date(ts).toLocaleString(),
-            width: '14%',
-            ellipsis: true,
-        },
+            width: '10%',
+        }
     ];
 
     const getRiskTag = (band: string) => {
