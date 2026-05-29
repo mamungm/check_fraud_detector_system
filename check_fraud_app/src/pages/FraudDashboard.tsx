@@ -72,7 +72,7 @@ export const FraudDashboard: React.FC = () => {
 
     const handlePublishDepositRequest = (event: DepositEvent) => {
         publishDepositRequest(event);
-        dispatch(fetchAllEvents());
+        // dispatch(fetchAllEvents());
         setIsModalOpen(false);
     };
 

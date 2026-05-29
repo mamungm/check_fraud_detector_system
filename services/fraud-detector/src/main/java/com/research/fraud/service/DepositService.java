@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -44,8 +45,10 @@ public class DepositService {
 
         fraudWorkflowService.startWorkflow(depositEvent);
 
+        List<DepositEventDTO> depositEventDTOS = Stream.of(depositEvent).map(this::toDTO).toList();
+
         return DepositEventResponse.builder()
-                .eventId(depositEvent.getEventId())
+                .depositEventList(depositEventDTOS)
                 .message("deposit request initiated")
                 .build();
     }
@@ -76,7 +79,7 @@ public class DepositService {
                 .micrAccountHash(e.getMicrAccountHash())
                 .imageFrontUri(e.getImageFrontUri())
                 .imageBackUri(e.getImageBackUri())
-                .status(e.getWorkflow().getState())
+                .workflow(e.getWorkflow().getState())
                 .finalFraudProbability(0)
                 .createdAt(e.getCreatedAt())
                 .build();

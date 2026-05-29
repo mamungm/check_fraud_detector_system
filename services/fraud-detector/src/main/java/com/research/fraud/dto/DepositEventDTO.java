@@ -29,7 +29,7 @@ public class DepositEventDTO {
     private String micrAccountHash;
     private String imageFrontUri;
     private String imageBackUri;
-    private WorkflowState status;
+    private WorkflowState workflow;
     private float finalFraudProbability;
     private OffsetDateTime createdAt;
 }

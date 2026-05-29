@@ -42,6 +42,26 @@ const slice = createSlice({
         },
         setEvents(state, action: PayloadAction<FraudEvent[]>) {
             state.events = action.payload;
+        },
+        addOrUpdateEvent(state, action: PayloadAction<FraudEvent>) {
+            const incoming = action.payload;
+            const idx = state.events.findIndex(e => e.eventId === incoming.eventId);
+
+            if (idx >= 0) {
+                // update existing event
+                state.events[idx] = {
+                    ...state.events[idx],
+                    ...incoming,
+                };
+            } else {
+                // add new event to the front
+                state.events.unshift(incoming);
+            }
+
+            // cap
+            if (state.events.length > 100) {
+                state.events = state.events.slice(0, 100);
+            }
         }
     },
     extraReducers: (builder) => {
@@ -60,5 +80,5 @@ const slice = createSlice({
     }
 });
 
-export const {addEvent, setEvents} = slice.actions;
+export const {addEvent, setEvents, addOrUpdateEvent} = slice.actions;
 export default slice.reducer;
