@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -46,4 +47,6 @@ public interface DepositEventRepository extends JpaRepository<DepositEvent, UUID
             @Param("institutionId") UUID institutionId,
             @Param("fromTime") OffsetDateTime fromTime
     );
+
+    List<DepositEvent> findByEventId(UUID eventId);
 }

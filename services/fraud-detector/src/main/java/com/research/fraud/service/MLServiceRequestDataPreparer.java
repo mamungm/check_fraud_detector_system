@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.UUID;
 
 @Service
 @AllArgsConstructor
@@ -21,14 +22,14 @@ public class MLServiceRequestDataPreparer {
     private final DepositEventRepository depositEventRepository;
     private final ObjectMapper objectMapper;
 
-    public MLServiceRequest prepareMLServiceRequest(FraudDetectionWorkflowEntity workflow) throws JsonProcessingException {
+    public MLServiceRequest prepareMLServiceRequest(FraudDetectionWorkflowEntity workflow, UUID eventId) throws JsonProcessingException {
         log.info("Preparing ML service request: workflow.getConsortiumResult() = {}", workflow.getConsortiumResult());
-        DepositEvent depositEvent = depositEventRepository.getReferenceById(workflow.getEventId());
+        DepositEvent depositEvent = depositEventRepository.getReferenceById(eventId);
         ConsortiumResult consortiumResult = objectMapper.readValue(workflow.getConsortiumResult(), ConsortiumResult.class);
         ImageResult imageResult = objectMapper.readValue(workflow.getImageResult(), ImageResult.class);
 
         return MLServiceRequest.builder()
-                .eventId(workflow.getEventId())
+                .eventId(eventId)
                 .institutionId(depositEvent.getInstitutionId().toString())
                 .amount(depositEvent.getAmount().floatValue())
                 .channel(depositEvent.getChannel())

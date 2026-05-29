@@ -39,6 +39,7 @@ class ConsortiumKafkaHandler(KafkaEventHandler):
             event_id = str(event.get("eventId", ""))
             try:
                 req = ConsortiumEventRequest.model_validate(event)
+                time.sleep(60)
                 with get_db_session_from_context() as db:
                     consortium_score_response = await asyncio.to_thread(consortium_process_event, req, db)
                 latency_ms = int((time.time() - start) * 1000)

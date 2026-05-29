@@ -1,6 +1,9 @@
 package com.research.fraud.statemachine;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,9 +21,6 @@ import java.util.UUID;
 public class FraudDetectionWorkflowEntity {
     @Id
     private UUID eventId;
-
-    @Enumerated(EnumType.STRING)
-    private WorkflowState state;
 
     private boolean imageCompleted;
 

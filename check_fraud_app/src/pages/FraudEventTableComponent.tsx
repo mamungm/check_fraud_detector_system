@@ -59,8 +59,8 @@ export const FraudEventTableComponent: React.FC<FraudEventTableProps> = ({events
         },
         {
             title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
+            dataIndex: 'workflow',
+            key: 'workflow',
             width: '8%'
         },
         {

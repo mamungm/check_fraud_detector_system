@@ -16,9 +16,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -30,22 +32,25 @@ public class DepositService {
 
     @Transactional
     public DepositEventResponse ingest(DepositEventRequest depositEventRequest) throws Exception {
-        UUID eventId = UUID.randomUUID();
-        FraudDetectionWorkflowEntity workflowEntity = FraudDetectionWorkflowEntity.builder()
-                .eventId(eventId)
-                .state(WorkflowState.RECEIVED)
-                .createdAt(Instant.now())
-                .build();
-        workflowEntity = fraudDetectionWorkflowRepo.save(workflowEntity);
-
         DepositEvent depositEvent = depositEventMapper.toEntity(depositEventRequest);
-        depositEvent.setWorkflow(workflowEntity);
+        depositEvent.setWorkflow(WorkflowState.RECEIVED);
+
+        depositEvent.setWorkflow(WorkflowState.WAITING_FOR_DEPENDENCIES);
+        depositEvent.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         depositEvent = depositEventRepository.save(depositEvent);
 
         fraudWorkflowService.startWorkflow(depositEvent);
 
-        return DepositEventResponse.builder()
+        FraudDetectionWorkflowEntity workflowEntity = FraudDetectionWorkflowEntity.builder()
                 .eventId(depositEvent.getEventId())
+                .createdAt(Instant.now())
+                .build();
+        fraudDetectionWorkflowRepo.save(workflowEntity);
+
+        List<DepositEventDTO> depositEventDTOS = Stream.of(depositEvent).map(this::toDTO).toList();
+
+        return DepositEventResponse.builder()
+                .depositEventList(depositEventDTOS)
                 .message("deposit request initiated")
                 .build();
     }
@@ -76,7 +81,7 @@ public class DepositService {
                 .micrAccountHash(e.getMicrAccountHash())
                 .imageFrontUri(e.getImageFrontUri())
                 .imageBackUri(e.getImageBackUri())
-                .status(e.getWorkflow().getState())
+                .workflow(e.getWorkflow())
                 .finalFraudProbability(0)
                 .createdAt(e.getCreatedAt())
                 .build();

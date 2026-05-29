@@ -27,7 +27,7 @@ public class DepositControllerWS implements Constants {
         log.info("deposit_request message received with request = {}", request);
         String sessionId = headerAccessor.getSessionId();
         DepositEventResponse response = service.ingest(request);
-        eventWSSessionMapper.mapEventToWSSession(response.eventId(), sessionId);
+        eventWSSessionMapper.mapEventToWSSession(response.depositEventList().getFirst().getEventId(), sessionId);
 
         return response;
     }

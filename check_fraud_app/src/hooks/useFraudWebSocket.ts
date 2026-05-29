@@ -1,10 +1,14 @@
 import {useState, useEffect, useRef} from 'react';
 import {Client} from "@stomp/stompjs";
 import type {DepositEvent} from "../models/FraudEvent.ts";
+import {useDispatch} from 'react-redux';
+import {addOrUpdateEvent} from "../store/fraudEventsSlice";
+import type {AppDispatch} from "../store";
 
 export const useFraudWebSocket = () => {
+    const dispatch = useDispatch<AppDispatch>();
     const [isConnected, setIsConnected] = useState(false);
-    const [lastMessage, _] = useState<any>(null);
+    const [lastMessage, setLastMessage] = useState<any>(null);
     const clientRef = useRef<Client | null>(null);
 
     useEffect(() => {
@@ -26,7 +30,11 @@ export const useFraudWebSocket = () => {
 
                 client.subscribe("/topic/single_service_completed", (message: { body: any; }) => {
                     console.log(message.body);
-                    // setLastMessage(message.body)
+                    setLastMessage(message.body)
+                });
+                client.subscribe("/topic/deposit_response", (message: { body: any; }) => {
+                    console.log(message.body);
+                    dispatch(addOrUpdateEvent(JSON.parse(message.body).depositEventList[0]));
                 });
             },
 

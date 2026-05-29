@@ -1,6 +1,6 @@
 package com.research.fraud.db.entity;
 
-import com.research.fraud.statemachine.FraudDetectionWorkflowEntity;
+import com.research.fraud.statemachine.WorkflowState;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -60,11 +60,11 @@ public class DepositEvent {
 
     private boolean fraudLabel = false;
 
-    @ManyToOne
-    @JoinColumn(name = "workflow_event_id")
-    private FraudDetectionWorkflowEntity workflow;
+    @Enumerated(EnumType.STRING)
+    private WorkflowState workflow;
 
     private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 
     // --- Lifecycle hooks ---
     @PrePersist
