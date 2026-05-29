@@ -10,6 +10,7 @@ import com.research.fraud.kafka.DepositProcessingTracker;
 import com.research.fraud.mappers.DepositEventMapper;
 import com.research.fraud.statemachine.FraudWorkflowService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -41,7 +42,7 @@ public class DepositService {
     }
 
     public List<DepositEventDTO> getDepositEventList() {
-        return depositEventRepository.findAll()
+        return depositEventRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"))
                 .stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());

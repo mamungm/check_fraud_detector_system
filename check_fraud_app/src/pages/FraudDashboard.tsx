@@ -15,18 +15,23 @@ import {
 import {WarningOutlined} from '@ant-design/icons';
 import {useFraudWebSocket} from '../hooks/useFraudWebSocket';
 import getRiskColor from "../config/ColorConfig.ts";
+import {useDispatch, useSelector} from "react-redux";
+import type {RootState, AppDispatch} from "../store";
+import {fetchAllEvents, addEvent} from "../store/fraudEventsSlice";
 import type {FraudEvent} from "../models/FraudEvent.ts";
 import {FraudEventTableComponent} from "./FraudEventTableComponent.tsx";
 import {DepositEventCreateComponent} from "./DepositEventCreateComponent.tsx";
-import {FraudEventService} from "../services/FraudEventService.ts";
 
 const {Header, Content} = Layout;
 
 export const FraudDashboard: React.FC = () => {
-    const [events, setEvents] = useState<FraudEvent[]>([]);
+    const dispatch = useDispatch<AppDispatch>();
+    const events = useSelector((s: RootState) => s.fraudEvents.events);
+    const loading = useSelector((s: RootState) => s.fraudEvents.loading);
+    // const error = useSelector((s: RootState) => s.fraudEvents.error);
+
     const [selectedEvent, setSelectedEvent] = useState<FraudEvent | null>(null);
     const [modalVisible, setModalVisible] = useState(false);
-    const [loading, setLoading] = useState(false);
     const {isConnected, lastMessage, publishDepositRequest} = useFraudWebSocket();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,32 +39,18 @@ export const FraudDashboard: React.FC = () => {
 
     // Handle incoming WebSocket messages
     useEffect(() => {
-        if (lastMessage) {
-            try {
-                const event = JSON.parse(lastMessage);
-                setEvents(prev => [event, ...prev].slice(0, 100)); // Keep last 100 events
-            } catch (e) {
-                console.error('Failed to parse WebSocket message', e);
-            }
+        if (!lastMessage) return;
+        try {
+            const evt: FraudEvent = JSON.parse(lastMessage);
+            dispatch(addEvent(evt));
+        } catch (e) {
+            console.error("Failed to parse WS message", e);
         }
-    }, [lastMessage]);
+    }, [lastMessage, dispatch]);
 
     useEffect(() => {
-        getAllEvents();
-    }, []);
-
-    const getAllEvents = async () => {
-        setLoading(true);
-        try {
-            const data = await FraudEventService.getAllEvents();
-            console.info("Data from server = ", data)
-            setEvents(data);
-        } catch (error) {
-            console.error('Error fetching events:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+        dispatch(fetchAllEvents());
+    }, [dispatch]);
 
     const showModal = () => {
         setIsModalOpen(true);
