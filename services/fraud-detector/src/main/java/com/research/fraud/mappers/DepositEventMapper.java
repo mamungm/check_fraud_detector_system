@@ -7,7 +7,6 @@ import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface DepositEventMapper {
-    @Mapping(target = "status", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     DepositEvent toEntity(DepositEventRequest request);
 }

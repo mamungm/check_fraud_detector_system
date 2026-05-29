@@ -18,7 +18,7 @@ import getRiskColor from "../config/ColorConfig.ts";
 import {useDispatch, useSelector} from "react-redux";
 import type {RootState, AppDispatch} from "../store";
 import {fetchAllEvents, addEvent} from "../store/fraudEventsSlice";
-import type {FraudEvent} from "../models/FraudEvent.ts";
+import type {DepositEvent, FraudEvent} from "../models/FraudEvent.ts";
 import {FraudEventTableComponent} from "./FraudEventTableComponent.tsx";
 import {DepositEventCreateComponent} from "./DepositEventCreateComponent.tsx";
 
@@ -68,6 +68,12 @@ export const FraudDashboard: React.FC = () => {
     const handleRowClick = (record: FraudEvent) => {
         setSelectedEvent(record);
         setModalVisible(true);
+    };
+
+    const handlePublishDepositRequest = (event: DepositEvent) => {
+        publishDepositRequest(event);
+        dispatch(fetchAllEvents());
+        setIsModalOpen(false);
     };
 
     const highRiskCount = events.filter(e => e.finalFraudProbability >= 0.85).length;
@@ -216,7 +222,7 @@ export const FraudDashboard: React.FC = () => {
                             onCancel={handleCancel}
                         >
                             <DepositEventCreateComponent form={depositEventCreateForm}
-                                                         publishDepositRequest={publishDepositRequest}/>
+                                                         publishDepositRequest={handlePublishDepositRequest}/>
                         </Modal>
                     </div>
                 }>

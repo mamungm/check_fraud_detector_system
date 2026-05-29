@@ -1,6 +1,7 @@
 package com.research.fraud.dto;
 
 import com.research.fraud.db.entity.DepositEvent;
+import com.research.fraud.statemachine.WorkflowState;
 import lombok.Builder;
 import lombok.Data;
 
@@ -28,7 +29,7 @@ public class DepositEventDTO {
     private String micrAccountHash;
     private String imageFrontUri;
     private String imageBackUri;
-    private DepositEvent.Status status;
+    private WorkflowState status;
     private float finalFraudProbability;
     private OffsetDateTime createdAt;
 }

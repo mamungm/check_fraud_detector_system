@@ -1,38 +1,47 @@
 package com.research.fraud.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.research.fraud.db.entity.DepositEvent;
 import com.research.fraud.db.repo.DepositEventRepository;
 import com.research.fraud.dto.DepositEventDTO;
 import com.research.fraud.dto.DepositEventRequest;
 import com.research.fraud.dto.DepositEventResponse;
-import com.research.fraud.kafka.DepositProcessingTracker;
 import com.research.fraud.mappers.DepositEventMapper;
+import com.research.fraud.statemachine.FraudDetectionWorkflowEntity;
+import com.research.fraud.statemachine.FraudDetectionWorkflowRepo;
 import com.research.fraud.statemachine.FraudWorkflowService;
+import com.research.fraud.statemachine.WorkflowState;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class DepositService {
     private final FraudWorkflowService fraudWorkflowService;
+    private final FraudDetectionWorkflowRepo fraudDetectionWorkflowRepo;
     private final DepositEventRepository depositEventRepository;
     private final DepositEventMapper depositEventMapper;
-    private final ObjectMapper objectMapper;
-    private final DepositProcessingTracker processingTracker;
 
+    @Transactional
     public DepositEventResponse ingest(DepositEventRequest depositEventRequest) throws Exception {
+        UUID eventId = UUID.randomUUID();
+        FraudDetectionWorkflowEntity workflowEntity = FraudDetectionWorkflowEntity.builder()
+                .eventId(eventId)
+                .state(WorkflowState.RECEIVED)
+                .createdAt(Instant.now())
+                .build();
+        workflowEntity = fraudDetectionWorkflowRepo.save(workflowEntity);
+
         DepositEvent depositEvent = depositEventMapper.toEntity(depositEventRequest);
-        depositEvent.setStatus(DepositEvent.Status.RECEIVED);
+        depositEvent.setWorkflow(workflowEntity);
         depositEvent = depositEventRepository.save(depositEvent);
 
-        // Track async downstream processing (Kafka fan-out). This is independent of the
-        // synchronous HTTP scoring calls below.
-        processingTracker.register(depositEvent.getEventId());
         fraudWorkflowService.startWorkflow(depositEvent);
 
         return DepositEventResponse.builder()
@@ -67,7 +76,7 @@ public class DepositService {
                 .micrAccountHash(e.getMicrAccountHash())
                 .imageFrontUri(e.getImageFrontUri())
                 .imageBackUri(e.getImageBackUri())
-                .status(e.getStatus())
+                .status(e.getWorkflow().getState())
                 .finalFraudProbability(0)
                 .createdAt(e.getCreatedAt())
                 .build();

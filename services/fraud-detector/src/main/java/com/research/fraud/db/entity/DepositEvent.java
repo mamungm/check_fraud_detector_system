@@ -1,5 +1,6 @@
 package com.research.fraud.db.entity;
 
+import com.research.fraud.statemachine.FraudDetectionWorkflowEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -57,10 +58,11 @@ public class DepositEvent {
 
     private String imageBackUri;
 
-    @Enumerated(EnumType.STRING)
-    private Status status;
-
     private boolean fraudLabel = false;
+
+    @ManyToOne
+    @JoinColumn(name = "workflow_event_id")
+    private FraudDetectionWorkflowEntity workflow;
 
     private OffsetDateTime createdAt;
 
@@ -80,12 +82,5 @@ public class DepositEvent {
         mobile,
         ATM,
         branch
-    }
-
-    // --- Enum for status ---
-    public enum Status {
-        RECEIVED,
-        SCORED,
-        SCORE_FAILED
     }
 }

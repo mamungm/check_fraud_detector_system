@@ -64,12 +64,7 @@ public class FraudWorkflowService implements Constants {
 
     public void startWorkflow(DepositEvent request) throws JsonProcessingException {
         log.info("starting workflow...");
-        FraudDetectionWorkflowEntity workflow = FraudDetectionWorkflowEntity.builder()
-                .eventId(request.getEventId())
-                .state(WorkflowState.RECEIVED)
-                .createdAt(Instant.now())
-                .build();
-        fraudDetectionWorkflowRepo.save(workflow);
+        FraudDetectionWorkflowEntity workflow = request.getWorkflow();
 
         StateMachine<WorkflowState, FraudEvent> sm = buildStateMachineForWorkflow(
                 workflow.getEventId(),
@@ -83,8 +78,6 @@ public class FraudWorkflowService implements Constants {
         kafkaTemplate.send(IMAGE_SERVICE_CMD, requestString);
         kafkaTemplate.send(RULE_SERVICE_CMD, requestString);
 
-        workflow = fraudDetectionWorkflowRepo.findById(request.getEventId()).orElseThrow();
-        log.info("workflow from db = " + workflow);
         workflow.setState(WorkflowState.WAITING_FOR_DEPENDENCIES);
         workflow.setUpdatedAt(Instant.now());
         log.info("updated workflow = " + workflow);
