@@ -1,5 +1,6 @@
 package com.research.rules_service.db.entity;
 
+import com.research.rules_service.dto.WorkflowState;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -57,10 +58,13 @@ public class DepositEvent {
 
     private String imageBackUri;
 
-    @Builder.Default
-    private String status = "RECEIVED";
+    private boolean fraudLabel = false;
+
+    @Enumerated(EnumType.STRING)
+    private WorkflowState workflow;
 
     private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 
     // --- Lifecycle hooks ---
     @PrePersist

@@ -7,6 +7,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record RulesServiceRequest(
+        UUID eventId,
         UUID institutionId,
         UUID clearingInstitutionId,
         DepositEvent.Channel channel,
@@ -22,5 +23,10 @@ public record RulesServiceRequest(
         String micrRoutingHash,
         String micrAccountHash,
         String imageFrontUri,
-        String imageBackUri) {
+        String imageBackUri,
+        boolean fraudLabel,
+        WorkflowState workflow,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
+        ) {
 }

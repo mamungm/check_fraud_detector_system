@@ -6,8 +6,7 @@ import com.research.fraud.service.EventWSSessionMapper;
 import com.research.fraud.service.SingleServiceCompletionResponsePreparer;
 import com.research.fraud.statemachine.FraudWorkflowService;
 import lombok.AllArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
@@ -16,9 +15,8 @@ import static com.research.fraud.config.Constants.SINGLE_SERVICE_COMPLETION_TOPI
 
 @Component
 @AllArgsConstructor
+@Slf4j
 public class ServiceCompletionListener {
-    private static final Logger log = LoggerFactory.getLogger(ServiceCompletionListener.class);
-
     private final ObjectMapper objectMapper;
     private final FraudWorkflowService fraudWorkflowService;
     private final EventWSSessionMapper eventWSSessionMapper;

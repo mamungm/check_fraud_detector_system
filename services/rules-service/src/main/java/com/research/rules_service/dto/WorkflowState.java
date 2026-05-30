@@ -1,0 +1,14 @@
+package com.research.rules_service.dto;
+
+public enum WorkflowState {
+    RECEIVED,
+    IMAGE_ANALYSIS_PENDING,
+    CONSORTIUM_ANALYSIS_PENDING,
+    WAITING_FOR_DEPENDENCIES,
+    FEATURE_ENGINEERING,
+    ML_ANALYSIS_PENDING,
+    RULE_ANALYSIS_PENDING,
+    FINALIZING,
+    COMPLETED,
+    FAILED
+}

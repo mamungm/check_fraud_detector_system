@@ -1,7 +1,9 @@
 package com.research.rules_service.service;
 
-import com.research.rules_service.db.entity.DepositEvent;
 import com.research.rules_service.db.repo.DepositEventRepository;
+import com.research.rules_service.dto.RulesServiceRequest;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
@@ -10,22 +12,20 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class RulesEngine {
     private final DepositEventRepository depositEventRepository;
 
-    public RulesEngine(DepositEventRepository depositEventRepository) {
-        this.depositEventRepository = depositEventRepository;
-    }
-
-    public List<Map<String, Object>> evaluate(DepositEvent e) {
+    public List<Map<String, Object>> evaluate(RulesServiceRequest e) {
         List<Map<String, Object>> hits = new ArrayList<>();
 
         int dup = Math.toIntExact(depositEventRepository
                 .countByMicrRoutingHashAndMicrAccountHashAndCheckSerialHashAndEventIdNot(
-                        e.getMicrRoutingHash(),
-                        e.getMicrAccountHash(),
-                        e.getCheckSerialHash(),
-                        e.getEventId()
+                        e.micrRoutingHash(),
+                        e.micrAccountHash(),
+                        e.checkSerialHash(),
+                        e.eventId()
                 ));
 
         if (dup > 0) {
@@ -33,8 +33,8 @@ public class RulesEngine {
         }
 
         OffsetDateTime cutoff = OffsetDateTime.now().minusDays(7);
-        int acct7d = Math.toIntExact(depositEventRepository.countByAccountTokenAndDepositTimestampAfter(e.getAccountToken(),
-                cutoff));
+        int acct7d = Math.toIntExact(depositEventRepository
+                .countByAccountTokenAndDepositTimestampAfter(e.accountToken(), cutoff));
 
         if (acct7d > 10) {
             hits.add(hit("HIGH_DEPOSIT_VELOCITY_7D", "HIGH", Map.of("deposit_count_7d", acct7d)));
@@ -42,14 +42,14 @@ public class RulesEngine {
 
         cutoff = OffsetDateTime.now().minusDays(90);
         int newDevice = Math.toIntExact(depositEventRepository.countByAccountTokenAndDeviceTokenAndDepositTimestampAfter
-                (e.getAccountToken(), e.getDeviceToken(), cutoff));
+                (e.accountToken(), e.deviceToken(), cutoff));
 
         if (newDevice == 0) {
-            hits.add(hit("NEW_DEVICE_FOR_ACCOUNT", "MEDIUM", Map.of("device_token", e.getDeviceToken())));
+            hits.add(hit("NEW_DEVICE_FOR_ACCOUNT", "MEDIUM", Map.of("device_token", e.deviceToken())));
         }
 
-        if (e.getAmount().doubleValue() >= 5000.0) {
-            hits.add(hit("HIGH_AMOUNT_CHECK", "MEDIUM", Map.of("amount", e.getAmount().doubleValue())));
+        if (e.amount().doubleValue() >= 5000.0) {
+            hits.add(hit("HIGH_AMOUNT_CHECK", "MEDIUM", Map.of("amount", e.amount().doubleValue())));
         }
 
         return hits;

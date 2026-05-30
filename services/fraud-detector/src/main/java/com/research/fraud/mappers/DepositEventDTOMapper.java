@@ -1,4 +1,4 @@
-package com.research.fraud.utils;
+package com.research.fraud.mappers;
 
 import com.research.fraud.db.entity.DepositEvent;
 import com.research.fraud.dto.DepositEventDTO;
@@ -11,7 +11,7 @@ import java.util.stream.Stream;
 
 @Component
 @AllArgsConstructor
-public class DTOConverter {
+public class DepositEventDTOMapper {
     public DepositEventResponse buildDepositResponse(DepositEvent depositEvent, String message) {
         List<DepositEventDTO> depositEventDTOS = Stream.of(depositEvent).map(this::toDTO).toList();
 

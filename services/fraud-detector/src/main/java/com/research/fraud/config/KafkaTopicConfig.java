@@ -43,7 +43,7 @@ public class KafkaTopicConfig {
 
     @Bean
     public NewTopic ruleBasedServiceCMDTopic() {
-        return TopicBuilder.name("Rule_based_Service_CMD")
+        return TopicBuilder.name("Rule_Service_CMD")
                 .partitions(1)
                 .replicas(1)
                 .build();
@@ -51,7 +51,7 @@ public class KafkaTopicConfig {
 
     @Bean
     public NewTopic ruleBasedServiceResponseTopic() {
-        return TopicBuilder.name("Rule_based_Service_Response")
+        return TopicBuilder.name("Rule_Service_Response")
                 .partitions(1)
                 .replicas(1)
                 .build();
