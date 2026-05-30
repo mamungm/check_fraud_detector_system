@@ -18,6 +18,8 @@ import org.springframework.statemachine.support.DefaultStateMachineContext;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Service
@@ -94,6 +96,7 @@ public class FraudWorkflowService implements Constants {
         log.info("sm = {}", sm);
         sm.sendEvent(Mono.just(MessageBuilder.withPayload(FraudEvent.CONSORTIUM_RESPONSE_RECEIVED).build())).blockLast();
         depositEvent.setWorkflow(sm.getState().getId());
+        depositEvent.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         fraudDetectionWorkflowRepo.save(workflow);
         depositEventRepository.save(depositEvent);
         checkConsortiumNImageServiceCompletionToTriggerML(depositEvent, workflow, response.getEventId());
@@ -113,6 +116,7 @@ public class FraudWorkflowService implements Constants {
                 depositEvent.getWorkflow());
         sm.sendEvent(Mono.just(MessageBuilder.withPayload(FraudEvent.IMAGE_RESPONSE_RECEIVED).build())).blockLast();
         depositEvent.setWorkflow(sm.getState().getId());
+        depositEvent.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         fraudDetectionWorkflowRepo.save(workflow);
         depositEventRepository.save(depositEvent);
         checkConsortiumNImageServiceCompletionToTriggerML(depositEvent, workflow, response.getEventId());
@@ -120,6 +124,7 @@ public class FraudWorkflowService implements Constants {
 
     @Transactional
     public void handleRuleServiceResponse(RuleServiceResponse response) {
+        log.info("handleRuleServiceResponse called with response = {}", response);
         DepositEvent depositEvent = depositEventRepository.findByEventId(response.getEventId()).getFirst();
         FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(response.getEventId()).orElseThrow();
 
@@ -131,6 +136,7 @@ public class FraudWorkflowService implements Constants {
                 depositEvent.getWorkflow());
         sm.sendEvent(Mono.just(MessageBuilder.withPayload(FraudEvent.RULE_RESPONSE_RECEIVED).build())).blockLast();
         depositEvent.setWorkflow(sm.getState().getId());
+        depositEvent.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         fraudDetectionWorkflowRepo.save(workflow);
         depositEventRepository.save(depositEvent);
     }
@@ -148,6 +154,7 @@ public class FraudWorkflowService implements Constants {
                 depositEvent.getWorkflow());
         sm.sendEvent(Mono.just(MessageBuilder.withPayload(FraudEvent.ML_RESPONSE_RECEIVED).build())).blockLast();
         depositEvent.setWorkflow(sm.getState().getId());
+        depositEvent.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         workflow = fraudDetectionWorkflowRepo.save(workflow);
         depositEvent = depositEventRepository.save(depositEvent);
         tryComplete(depositEvent, workflow);
@@ -183,6 +190,7 @@ public class FraudWorkflowService implements Constants {
                     depositEvent.getWorkflow());
             sm.sendEvent(Mono.just(MessageBuilder.withPayload(FraudEvent.ALL_COMPLETED).build())).blockLast();
             depositEvent.setWorkflow(sm.getState().getId());
+            depositEvent.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
             fraudDetectionWorkflowRepo.save(workflow);
             depositEventRepository.save(depositEvent);
         }

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -17,8 +18,8 @@ import java.util.Map;
 public class RulesEngine {
     private final DepositEventRepository depositEventRepository;
 
-    public List<Map<String, Object>> evaluate(RulesServiceRequest e) {
-        List<Map<String, Object>> hits = new ArrayList<>();
+    public Map<String, Object> evaluate(RulesServiceRequest e) {
+        Map<String, Object> hits = new HashMap<>();
 
         int dup = Math.toIntExact(depositEventRepository
                 .countByMicrRoutingHashAndMicrAccountHashAndCheckSerialHashAndEventIdNot(
@@ -29,7 +30,7 @@ public class RulesEngine {
                 ));
 
         if (dup > 0) {
-            hits.add(hit("DUPLICATE_PRESENTMENT", "CRITICAL", Map.of("prior_matches", dup)));
+            hits.put("rule_duplicate_presentment", hit("DUPLICATE_PRESENTMENT", "CRITICAL", Map.of("prior_matches", dup)));
         }
 
         OffsetDateTime cutoff = OffsetDateTime.now().minusDays(7);
@@ -37,7 +38,7 @@ public class RulesEngine {
                 .countByAccountTokenAndDepositTimestampAfter(e.accountToken(), cutoff));
 
         if (acct7d > 10) {
-            hits.add(hit("HIGH_DEPOSIT_VELOCITY_7D", "HIGH", Map.of("deposit_count_7d", acct7d)));
+            hits.put("rule_high_deposit_velocity_7d", hit("HIGH_DEPOSIT_VELOCITY_7D", "HIGH", Map.of("deposit_count_7d", acct7d)));
         }
 
         cutoff = OffsetDateTime.now().minusDays(90);
@@ -45,11 +46,11 @@ public class RulesEngine {
                 (e.accountToken(), e.deviceToken(), cutoff));
 
         if (newDevice == 0) {
-            hits.add(hit("NEW_DEVICE_FOR_ACCOUNT", "MEDIUM", Map.of("device_token", e.deviceToken())));
+            hits.put("rule_new_device_for_account", hit("NEW_DEVICE_FOR_ACCOUNT", "MEDIUM", Map.of("device_token", e.deviceToken())));
         }
 
         if (e.amount().doubleValue() >= 5000.0) {
-            hits.add(hit("HIGH_AMOUNT_CHECK", "MEDIUM", Map.of("amount", e.amount().doubleValue())));
+            hits.put("rule_high_amount_check", hit("HIGH_AMOUNT_CHECK", "MEDIUM", Map.of("amount", e.amount().doubleValue())));
         }
 
         return hits;

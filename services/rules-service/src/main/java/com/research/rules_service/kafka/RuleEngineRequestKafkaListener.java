@@ -30,7 +30,7 @@ public class RuleEngineRequestKafkaListener implements Constants {
         try {
             log.info("Received Rule_Service_CMD message: {}", payload);
             RulesServiceRequest rulesServiceRequest = objectMapper.readValue(payload, RulesServiceRequest.class);
-            List<Map<String, Object>> evaluationResult = rulesEngine.evaluate(rulesServiceRequest);
+            Map<String, Object> evaluationResult = rulesEngine.evaluate(rulesServiceRequest);
 //            String wsSessionId = eventWSSessionMapper.getWSSessionIdFromEventId(evt.eventId());
 //            log.info("WS Session Id: {}", wsSessionId);
             ServiceCompletionEvent serviceCompletionEvent = ServiceCompletionEvent.builder()

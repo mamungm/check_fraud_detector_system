@@ -3,7 +3,6 @@ package com.research.rules_service.dto;
 import lombok.Builder;
 import lombok.Data;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -16,5 +15,5 @@ public class ServiceCompletionEvent {
     private Integer latencyMs;
     private Double ts;
     private String error;
-    private List<Map<String, Object>> details;
+    private Map<String, Object> details;
 }

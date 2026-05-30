@@ -91,7 +91,7 @@ public class ServiceCompletionListener {
 
             messagingTemplate.convertAndSend(
                     SINGLE_SERVICE_COMPLETION_TOPIC,
-                    evt
+                    singleServiceCompletionResponsePreparer.prepareRuleServiceResponseMessage(evt)
             );
         } catch (Exception e) {
             log.warn("Failed to parse service completion message: {}", payload, e);

@@ -31,4 +31,10 @@ public class SingleServiceCompletionResponsePreparer {
 
         return depositEventDtoMapper.buildDepositResponse(depositEvent, "ml service completed");
     }
+
+    public DepositEventResponse prepareRuleServiceResponseMessage(ServiceCompletionEvent serviceCompletionEvent) {
+        DepositEvent depositEvent = depositEventRepository.findByEventId(serviceCompletionEvent.eventId()).getFirst();
+
+        return depositEventDtoMapper.buildDepositResponse(depositEvent, "rule service completed");
+    }
 }
