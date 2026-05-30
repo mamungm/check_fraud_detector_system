@@ -43,7 +43,7 @@ const slice = createSlice({
         setEvents(state, action: PayloadAction<FraudEvent[]>) {
             state.events = action.payload;
         },
-        addOrUpdateEvent(state, action: PayloadAction<FraudEvent>) {
+        addOrUpdateEventFromDepositResponse(state, action: PayloadAction<FraudEvent>) {
             const incoming = action.payload;
             const idx = state.events.findIndex(e => e.eventId === incoming.eventId);
 
@@ -80,5 +80,5 @@ const slice = createSlice({
     }
 });
 
-export const {addEvent, setEvents, addOrUpdateEvent} = slice.actions;
+export const {addEvent, setEvents, addOrUpdateEventFromDepositResponse} = slice.actions;
 export default slice.reducer;

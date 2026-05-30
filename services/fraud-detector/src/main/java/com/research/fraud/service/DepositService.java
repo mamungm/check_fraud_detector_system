@@ -10,6 +10,7 @@ import com.research.fraud.statemachine.FraudDetectionWorkflowEntity;
 import com.research.fraud.statemachine.FraudDetectionWorkflowRepo;
 import com.research.fraud.statemachine.FraudWorkflowService;
 import com.research.fraud.statemachine.WorkflowState;
+import com.research.fraud.utils.DTOConverter;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
@@ -20,7 +21,6 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +29,7 @@ public class DepositService {
     private final FraudDetectionWorkflowRepo fraudDetectionWorkflowRepo;
     private final DepositEventRepository depositEventRepository;
     private final DepositEventMapper depositEventMapper;
+    private final DTOConverter dtoConverter;
 
     @Transactional
     public DepositEventResponse ingest(DepositEventRequest depositEventRequest) throws Exception {
@@ -47,43 +48,13 @@ public class DepositService {
                 .build();
         fraudDetectionWorkflowRepo.save(workflowEntity);
 
-        List<DepositEventDTO> depositEventDTOS = Stream.of(depositEvent).map(this::toDTO).toList();
-
-        return DepositEventResponse.builder()
-                .depositEventList(depositEventDTOS)
-                .message("deposit request initiated")
-                .build();
+        return dtoConverter.buildDepositResponse(depositEvent, "deposit request initiated");
     }
 
     public List<DepositEventDTO> getDepositEventList() {
         return depositEventRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"))
                 .stream()
-                .map(this::toDTO)
+                .map(dtoConverter::toDTO)
                 .collect(Collectors.toList());
-    }
-
-    private DepositEventDTO toDTO(DepositEvent e) {
-        return DepositEventDTO.builder()
-                .eventId(e.getEventId())
-                .institutionId(e.getInstitutionId())
-                .clearingInstitutionId(e.getClearingInstitutionId())
-                .channel(e.getChannel())
-                .depositTimestamp(e.getDepositTimestamp())
-                .amount(e.getAmount())
-                .currency(e.getCurrency())
-                .accountToken(e.getAccountToken())
-                .payeeToken(e.getPayeeToken())
-                .payorToken(e.getPayorToken())
-                .deviceToken(e.getDeviceToken())
-                .region(e.getRegion())
-                .checkSerialHash(e.getCheckSerialHash())
-                .micrRoutingHash(e.getMicrRoutingHash())
-                .micrAccountHash(e.getMicrAccountHash())
-                .imageFrontUri(e.getImageFrontUri())
-                .imageBackUri(e.getImageBackUri())
-                .workflow(e.getWorkflow())
-                .finalFraudProbability(0)
-                .createdAt(e.getCreatedAt())
-                .build();
     }
 }

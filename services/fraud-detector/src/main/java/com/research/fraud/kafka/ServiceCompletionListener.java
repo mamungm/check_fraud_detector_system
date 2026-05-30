@@ -3,6 +3,7 @@ package com.research.fraud.kafka;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.research.fraud.dto.*;
 import com.research.fraud.service.EventWSSessionMapper;
+import com.research.fraud.service.SingleServiceCompletionResponsePreparer;
 import com.research.fraud.statemachine.FraudWorkflowService;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
@@ -22,6 +23,7 @@ public class ServiceCompletionListener {
     private final FraudWorkflowService fraudWorkflowService;
     private final EventWSSessionMapper eventWSSessionMapper;
     private final SimpMessagingTemplate messagingTemplate;
+    private final SingleServiceCompletionResponsePreparer singleServiceCompletionResponsePreparer;
 
     @KafkaListener(
             topics = "Consortium_Service_Response",
@@ -29,7 +31,7 @@ public class ServiceCompletionListener {
     )
     public void onConsortiumServiceResponseMessage(String payload) {
         try {
-            log.info("Received consortium service completion event from topic {}", payload);
+            log.info("Received consortium service completion event {}", payload);
             ServiceCompletionEvent evt = objectMapper.readValue(payload, ServiceCompletionEvent.class);
             fraudWorkflowService.handleConsortiumServiceResponse(
                     ConsortiumServiceResponse.builder()
@@ -39,9 +41,10 @@ public class ServiceCompletionListener {
             String wsSessionId = eventWSSessionMapper.getWSSessionIdFromEventId(evt.eventId());
             log.info("WS Session Id: {}", wsSessionId);
 
+            Thread.sleep(2000);
             messagingTemplate.convertAndSend(
                     SINGLE_SERVICE_COMPLETION_TOPIC,
-                    evt
+                    singleServiceCompletionResponsePreparer.prepareConsortiumServiceResponseMessage(evt)
             );
         } catch (Exception e) {
             log.warn("Failed to parse service completion message: {}", payload, e);
@@ -63,9 +66,10 @@ public class ServiceCompletionListener {
             String wsSessionId = eventWSSessionMapper.getWSSessionIdFromEventId(evt.eventId());
             log.info("WS Session Id: {}", wsSessionId);
 
+            Thread.sleep(2000);
             messagingTemplate.convertAndSend(
                     SINGLE_SERVICE_COMPLETION_TOPIC,
-                    evt
+                    singleServiceCompletionResponsePreparer.prepareImageServiceResponseMessage(evt)
             );
         } catch (Exception e) {
             log.warn("Failed to parse service completion message: {}", payload, e);
@@ -111,9 +115,10 @@ public class ServiceCompletionListener {
             String wsSessionId = eventWSSessionMapper.getWSSessionIdFromEventId(evt.eventId());
             log.info("WS Session Id: {}", wsSessionId);
 
+            Thread.sleep(2000);
             messagingTemplate.convertAndSend(
                     SINGLE_SERVICE_COMPLETION_TOPIC,
-                    evt
+                    singleServiceCompletionResponsePreparer.prepareMLServiceResponseMessage(evt)
             );
         } catch (Exception e) {
             log.warn("Failed to parse service completion message: {}", payload, e);

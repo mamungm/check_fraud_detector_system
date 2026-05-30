@@ -81,7 +81,7 @@ public class FraudWorkflowService implements Constants {
 
     @Transactional
     public void handleConsortiumServiceResponse(ConsortiumServiceResponse response) throws JsonProcessingException {
-        log.info("handleConsortiumServiceResponse called");
+        log.info("handleConsortiumServiceResponse called with response = {}", response);
         DepositEvent depositEvent = depositEventRepository.findByEventId(response.getEventId()).getFirst();
         FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(response.getEventId()).orElseThrow();
 
@@ -101,6 +101,7 @@ public class FraudWorkflowService implements Constants {
 
     @Transactional
     public void handleImageServiceResponse(ImageServiceResponse response) throws JsonProcessingException {
+        log.info("handleImageServiceResponse called with response = {}", response);
         DepositEvent depositEvent = depositEventRepository.findByEventId(response.getEventId()).getFirst();
         FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(response.getEventId()).orElseThrow();
 
@@ -139,16 +140,16 @@ public class FraudWorkflowService implements Constants {
         DepositEvent depositEvent = depositEventRepository.findByEventId(response.getEventId()).getFirst();
         FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(response.getEventId()).orElseThrow();
 
-        workflow.setRuleCompleted(true);
-        workflow.setRuleResult(response.getResult());
+        workflow.setMlCompleted(true);
+        workflow.setMlResult(response.getResult());
 
         StateMachine<WorkflowState, FraudEvent> sm = buildStateMachineForWorkflow(
                 response.getEventId(),
                 depositEvent.getWorkflow());
         sm.sendEvent(Mono.just(MessageBuilder.withPayload(FraudEvent.ML_RESPONSE_RECEIVED).build())).blockLast();
         depositEvent.setWorkflow(sm.getState().getId());
-        fraudDetectionWorkflowRepo.save(workflow);
-        depositEventRepository.save(depositEvent);
+        workflow = fraudDetectionWorkflowRepo.save(workflow);
+        depositEvent = depositEventRepository.save(depositEvent);
         tryComplete(depositEvent, workflow);
     }
 
@@ -177,12 +178,13 @@ public class FraudWorkflowService implements Constants {
 
     private void tryComplete(DepositEvent depositEvent, FraudDetectionWorkflowEntity workflow) {
         if (workflow.isMlCompleted() && workflow.isRuleCompleted()) {
-
-            depositEvent.setWorkflow(WorkflowState.COMPLETED);
-
-//            websocketTemplate.convertAndSend(
-//                    "/topic/fraud/" + workflow.getWorkflowId(),
-//                    buildFinalResponse(workflow));
+            StateMachine<WorkflowState, FraudEvent> sm = buildStateMachineForWorkflow(
+                    depositEvent.getEventId(),
+                    depositEvent.getWorkflow());
+            sm.sendEvent(Mono.just(MessageBuilder.withPayload(FraudEvent.ALL_COMPLETED).build())).blockLast();
+            depositEvent.setWorkflow(sm.getState().getId());
+            fraudDetectionWorkflowRepo.save(workflow);
+            depositEventRepository.save(depositEvent);
         }
     }
 }
