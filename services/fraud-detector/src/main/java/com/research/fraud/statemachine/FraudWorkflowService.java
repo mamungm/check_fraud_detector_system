@@ -130,6 +130,9 @@ public class FraudWorkflowService implements Constants {
         // Mark Rule service completion
         DepositEvent depositEvent = depositEventRepository.findByEventId(ruleServiceResponse.getEventId()).getFirst();
         sendSMEventNUpdateDepositEvent(depositEvent, FraudEvent.RULE_RESPONSE_RECEIVED);
+
+        // Check if ML and Rule service completed, if yes then trigger all service completion state
+        tryComplete(depositEvent, workflow);
     }
 
     /**

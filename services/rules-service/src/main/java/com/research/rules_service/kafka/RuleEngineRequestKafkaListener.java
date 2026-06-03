@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.kafka.annotation.KafkaListener;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.util.List;
 import java.util.Map;
 
 @Component
@@ -24,7 +23,7 @@ public class RuleEngineRequestKafkaListener implements Constants {
 
     @KafkaListener(
             topics = "Rule_Service_CMD",
-            groupId = "image-fraud-service"
+            groupId = "rule-service"
     )
     public void onRuleServiceCMDMessageReceived(String payload) {
         try {

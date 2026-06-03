@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.statemachine.config.EnableStateMachineFactory;
 import org.springframework.statemachine.config.EnumStateMachineConfigurerAdapter;
+import org.springframework.statemachine.config.builders.StateMachineConfigurationConfigurer;
 import org.springframework.statemachine.config.builders.StateMachineStateConfigurer;
 import org.springframework.statemachine.config.builders.StateMachineTransitionConfigurer;
 
@@ -11,6 +12,17 @@ import org.springframework.statemachine.config.builders.StateMachineTransitionCo
 @EnableStateMachineFactory
 @RequiredArgsConstructor
 public class FraudStateMachineConfig extends EnumStateMachineConfigurerAdapter<WorkflowState, FraudEvent> {
+    private final FraudStateMachineListener listener;
+
+    @Override
+    public void configure(
+            StateMachineConfigurationConfigurer<WorkflowState, FraudEvent> config)
+            throws Exception {
+        config
+                .withConfiguration()
+                .listener(listener);
+    }
+
     @Override
     public void configure(StateMachineStateConfigurer<WorkflowState, FraudEvent> states) throws Exception {
         states.withStates()
