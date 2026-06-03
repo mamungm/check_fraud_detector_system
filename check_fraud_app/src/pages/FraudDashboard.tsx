@@ -99,7 +99,13 @@ export const FraudDashboard: React.FC = () => {
     const avgScore = events.length > 0 ? (events.reduce((sum, e) => sum + e.finalFraudProbability, 0) / events.length).toFixed(3) : '0.000';
 
     return (
-        <Layout style={{minHeight: '100vh'}}>
+        <Layout style={{
+            padding: '24px',
+            maxWidth: '1800px',
+            margin: '0 auto',
+            width: '100%',
+            boxSizing: 'border-box',
+        }}>
             <Header style={{background: '#001529', color: 'white', padding: '0 24px'}}>
                 <h1 style={{color: 'white', margin: 0}}>
                     Fraud Detection Dashboard

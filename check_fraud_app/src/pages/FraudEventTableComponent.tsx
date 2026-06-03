@@ -111,6 +111,6 @@ export const FraudEventTableComponent: React.FC<FraudEventTableProps> = ({events
             },
             style: {cursor: 'pointer'},
         })}
-        scroll={{x: 1200}}
+        tableLayout="fixed"
     />;
 }
