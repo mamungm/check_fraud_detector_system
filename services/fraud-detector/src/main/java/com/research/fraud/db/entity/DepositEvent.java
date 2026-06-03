@@ -76,6 +76,14 @@ public class DepositEvent {
         if (createdAt == null) {
             createdAt = OffsetDateTime.now(ZoneOffset.UTC);
         }
+        if (updatedAt == null) {
+            updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 
     // --- Enum for channel ---

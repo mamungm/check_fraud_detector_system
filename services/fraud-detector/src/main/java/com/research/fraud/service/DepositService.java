@@ -13,17 +13,17 @@ import com.research.fraud.statemachine.FraudWorkflowService;
 import com.research.fraud.statemachine.WorkflowState;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DepositService {
     private final FraudWorkflowService fraudWorkflowService;
     private final FraudDetectionWorkflowRepo fraudDetectionWorkflowRepo;
@@ -35,9 +35,7 @@ public class DepositService {
     public DepositEventResponse ingest(DepositEventRequest depositEventRequest) throws Exception {
         DepositEvent depositEvent = depositEventMapper.toEntity(depositEventRequest);
         depositEvent.setWorkflow(WorkflowState.RECEIVED);
-
-        depositEvent.setWorkflow(WorkflowState.WAITING_FOR_DEPENDENCIES);
-        depositEvent.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        log.info("workflow state at the start of ingest = {}", WorkflowState.RECEIVED);
         depositEvent = depositEventRepository.save(depositEvent);
 
         fraudWorkflowService.startWorkflow(depositEvent);

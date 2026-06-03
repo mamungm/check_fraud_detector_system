@@ -18,8 +18,6 @@ import org.springframework.statemachine.support.DefaultStateMachineContext;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Service
@@ -65,14 +63,19 @@ public class FraudWorkflowService implements Constants {
         return sm;
     }
 
-    public void startWorkflow(DepositEvent depositEvent) throws JsonProcessingException {
-        log.info("starting workflow...");
-
+    private void sendSMEventNUpdateDepositEvent(DepositEvent depositEvent, FraudEvent fraudEvent) {
         StateMachine<WorkflowState, FraudEvent> sm = buildStateMachineForWorkflow(
                 depositEvent.getEventId(),
                 depositEvent.getWorkflow());
-        sm.sendEvent(Mono.just(MessageBuilder.withPayload(FraudEvent.START).build())).blockLast();
-        log.info("sm = {}", sm);
+        sm.sendEvent(Mono.just(MessageBuilder.withPayload(fraudEvent).build())).blockLast();
+        depositEvent.setWorkflow(sm.getState().getId());
+        depositEventRepository.save(depositEvent);
+    }
+
+    public void startWorkflow(DepositEvent depositEvent) throws JsonProcessingException {
+        log.info("starting workflow...");
+
+        sendSMEventNUpdateDepositEvent(depositEvent, FraudEvent.START);
 
         log.info("sending CONSORTIUM_SERVICE_CMD, IMAGE_SERVICE_CMD, RULE_SERVICE_CMD kafka commands");
         String requestString = objectMapper.writeValueAsString(depositEvent);
@@ -84,79 +87,58 @@ public class FraudWorkflowService implements Constants {
     @Transactional
     public void handleConsortiumServiceResponse(ConsortiumServiceResponse response) throws JsonProcessingException {
         log.info("handleConsortiumServiceResponse called with response = {}", response);
-        DepositEvent depositEvent = depositEventRepository.findByEventId(response.getEventId()).getFirst();
-        FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(response.getEventId()).orElseThrow();
 
+        FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(response.getEventId()).orElseThrow();
         workflow.setConsortiumCompleted(true);
         workflow.setConsortiumResult(response.getResult());
-
-        StateMachine<WorkflowState, FraudEvent> sm = buildStateMachineForWorkflow(
-                response.getEventId(),
-                depositEvent.getWorkflow());
-        log.info("sm = {}", sm);
-        sm.sendEvent(Mono.just(MessageBuilder.withPayload(FraudEvent.CONSORTIUM_RESPONSE_RECEIVED).build())).blockLast();
-        depositEvent.setWorkflow(sm.getState().getId());
-        depositEvent.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         fraudDetectionWorkflowRepo.save(workflow);
-        depositEventRepository.save(depositEvent);
+
+        DepositEvent depositEvent = depositEventRepository.findByEventId(response.getEventId()).getFirst();
+        sendSMEventNUpdateDepositEvent(depositEvent, FraudEvent.CONSORTIUM_RESPONSE_RECEIVED);
+
         checkConsortiumNImageServiceCompletionToTriggerML(depositEvent, workflow, response.getEventId());
     }
 
     @Transactional
     public void handleImageServiceResponse(ImageServiceResponse response) throws JsonProcessingException {
         log.info("handleImageServiceResponse called with response = {}", response);
-        DepositEvent depositEvent = depositEventRepository.findByEventId(response.getEventId()).getFirst();
-        FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(response.getEventId()).orElseThrow();
 
+        FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(response.getEventId()).orElseThrow();
         workflow.setImageCompleted(true);
         workflow.setImageResult(response.getResult());
-
-        StateMachine<WorkflowState, FraudEvent> sm = buildStateMachineForWorkflow(
-                response.getEventId(),
-                depositEvent.getWorkflow());
-        sm.sendEvent(Mono.just(MessageBuilder.withPayload(FraudEvent.IMAGE_RESPONSE_RECEIVED).build())).blockLast();
-        depositEvent.setWorkflow(sm.getState().getId());
-        depositEvent.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         fraudDetectionWorkflowRepo.save(workflow);
-        depositEventRepository.save(depositEvent);
+
+        DepositEvent depositEvent = depositEventRepository.findByEventId(response.getEventId()).getFirst();
+        sendSMEventNUpdateDepositEvent(depositEvent, FraudEvent.IMAGE_RESPONSE_RECEIVED);
+
         checkConsortiumNImageServiceCompletionToTriggerML(depositEvent, workflow, response.getEventId());
     }
 
     @Transactional
     public void handleRuleServiceResponse(RuleServiceResponse response) {
         log.info("handleRuleServiceResponse called with response = {}", response);
-        DepositEvent depositEvent = depositEventRepository.findByEventId(response.getEventId()).getFirst();
-        FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(response.getEventId()).orElseThrow();
 
+        FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(response.getEventId()).orElseThrow();
         workflow.setRuleCompleted(true);
         workflow.setRuleResult(response.getResult());
-
-        StateMachine<WorkflowState, FraudEvent> sm = buildStateMachineForWorkflow(
-                response.getEventId(),
-                depositEvent.getWorkflow());
-        sm.sendEvent(Mono.just(MessageBuilder.withPayload(FraudEvent.RULE_RESPONSE_RECEIVED).build())).blockLast();
-        depositEvent.setWorkflow(sm.getState().getId());
-        depositEvent.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         fraudDetectionWorkflowRepo.save(workflow);
-        depositEventRepository.save(depositEvent);
+
+        DepositEvent depositEvent = depositEventRepository.findByEventId(response.getEventId()).getFirst();
+        sendSMEventNUpdateDepositEvent(depositEvent, FraudEvent.RULE_RESPONSE_RECEIVED);
     }
 
     @Transactional
     public void handleMLServiceResponse(MLServiceResponse response) {
-        DepositEvent depositEvent = depositEventRepository.findByEventId(response.getEventId()).getFirst();
-        FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(response.getEventId()).orElseThrow();
+        log.info("handleMLServiceResponse called with response = {}", response);
 
+        FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(response.getEventId()).orElseThrow();
         workflow.setMlCompleted(true);
         workflow.setMlResult(response.getResult());
+        fraudDetectionWorkflowRepo.save(workflow);
 
-        StateMachine<WorkflowState, FraudEvent> sm = buildStateMachineForWorkflow(
-                response.getEventId(),
-                depositEvent.getWorkflow());
-        sm.sendEvent(Mono.just(MessageBuilder.withPayload(FraudEvent.ML_RESPONSE_RECEIVED).build())).blockLast();
-        depositEvent.setWorkflow(sm.getState().getId());
-        depositEvent.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-        workflow = fraudDetectionWorkflowRepo.save(workflow);
-        depositEvent = depositEventRepository.save(depositEvent);
+        DepositEvent depositEvent = depositEventRepository.findByEventId(response.getEventId()).getFirst();
+        sendSMEventNUpdateDepositEvent(depositEvent, FraudEvent.ML_RESPONSE_RECEIVED);
+
         tryComplete(depositEvent, workflow);
     }
 
@@ -167,32 +149,16 @@ public class FraudWorkflowService implements Constants {
     }
 
     private void triggerML(DepositEvent depositEvent, FraudDetectionWorkflowEntity workflow, UUID eventId) throws JsonProcessingException {
+        sendSMEventNUpdateDepositEvent(depositEvent, FraudEvent.BOTH_DEPENDENCIES_READY);
+
         MLServiceRequest request = mlServiceRequestDataPreparer.prepareMLServiceRequest(workflow, eventId);
-
-        StateMachine<WorkflowState, FraudEvent> sm = buildStateMachineForWorkflow(
-                eventId,
-                depositEvent.getWorkflow());
-        log.info("sm = {}", sm);
-        sm.sendEvent(Mono.just(MessageBuilder.withPayload(FraudEvent.BOTH_DEPENDENCIES_READY).build())).blockLast();
-        depositEvent.setWorkflow(sm.getState().getId());
-
         String requestString = objectMapper.writeValueAsString(request);
         kafkaTemplate.send(ML_SERVICE_CMD, requestString);
-
-        depositEvent.setWorkflow(WorkflowState.ML_ANALYSIS_PENDING);
-        depositEventRepository.save(depositEvent);
     }
 
     private void tryComplete(DepositEvent depositEvent, FraudDetectionWorkflowEntity workflow) {
         if (workflow.isMlCompleted() && workflow.isRuleCompleted()) {
-            StateMachine<WorkflowState, FraudEvent> sm = buildStateMachineForWorkflow(
-                    depositEvent.getEventId(),
-                    depositEvent.getWorkflow());
-            sm.sendEvent(Mono.just(MessageBuilder.withPayload(FraudEvent.ALL_COMPLETED).build())).blockLast();
-            depositEvent.setWorkflow(sm.getState().getId());
-            depositEvent.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-            fraudDetectionWorkflowRepo.save(workflow);
-            depositEventRepository.save(depositEvent);
+            sendSMEventNUpdateDepositEvent(depositEvent, FraudEvent.ALL_COMPLETED);
         }
     }
 }

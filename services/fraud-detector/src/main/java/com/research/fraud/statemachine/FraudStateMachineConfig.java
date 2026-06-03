@@ -35,15 +35,8 @@ public class FraudStateMachineConfig extends EnumStateMachineConfigurerAdapter<W
 
                 .withExternal()
                 .source(WorkflowState.WAITING_FOR_DEPENDENCIES)
-                .target(WorkflowState.FEATURE_ENGINEERING)
-                .event(FraudEvent.BOTH_DEPENDENCIES_READY)
-
-                .and()
-
-                .withExternal()
-                .source(WorkflowState.FEATURE_ENGINEERING)
                 .target(WorkflowState.ML_ANALYSIS_PENDING)
-                .event(FraudEvent.START)
+                .event(FraudEvent.BOTH_DEPENDENCIES_READY)
 
                 .and()
 
