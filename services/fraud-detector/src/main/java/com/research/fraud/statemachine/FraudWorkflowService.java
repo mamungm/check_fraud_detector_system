@@ -38,12 +38,12 @@ public class FraudWorkflowService implements Constants {
      * @throws JsonProcessingException This exception is thrown if there is any anomaly in objectMapper.writeValueAsString
      */
     public void startWorkflow(DepositEvent depositEvent) throws JsonProcessingException {
-        log.info("starting workflow...");
+        log.info("[{}] starting workflow...", depositEvent.getEventId());
 
         // Start the workflow statemachine for the depositEvent
         sendSMEventNUpdateDepositEvent(depositEvent, FraudEvent.START);
 
-        log.info("sending CONSORTIUM_SERVICE_CMD, IMAGE_SERVICE_CMD, RULE_SERVICE_CMD Kafka commands");
+        log.info("[{}] sending CONSORTIUM_SERVICE_CMD, IMAGE_SERVICE_CMD, RULE_SERVICE_CMD Kafka commands", depositEvent.getEventId());
         String requestString = objectMapper.writeValueAsString(depositEvent);
 
         // Send kafka message to Consortium, Image and Rule service so that they can start their processing in parallel
@@ -62,8 +62,10 @@ public class FraudWorkflowService implements Constants {
      * @throws JsonProcessingException This exception is thrown if there is any anomaly in objectMapper.writeValueAsString
      */
     @Transactional
-    public void handleConsortiumServiceResponse(ConsortiumServiceResponse consortiumServiceResponse) throws JsonProcessingException {
-        log.info("handleConsortiumServiceResponse called with response = {}", consortiumServiceResponse);
+    public void handleConsortiumServiceResponse(ConsortiumServiceResponse consortiumServiceResponse)
+            throws JsonProcessingException {
+        log.info("[{}] handleConsortiumServiceResponse called with response = {}", consortiumServiceResponse.getEventId(),
+                consortiumServiceResponse);
 
         // Update workflow state and workflow result
         FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(consortiumServiceResponse.getEventId()).orElseThrow();
@@ -90,7 +92,8 @@ public class FraudWorkflowService implements Constants {
      */
     @Transactional
     public void handleImageServiceResponse(ImageServiceResponse imageServiceResponse) throws JsonProcessingException {
-        log.info("handleImageServiceResponse called with response = {}", imageServiceResponse);
+        log.info("[{}] handleImageServiceResponse called with response = {}", imageServiceResponse.getEventId(),
+                imageServiceResponse);
 
         // Update workflow state and workflow result
         FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(imageServiceResponse.getEventId()).orElseThrow();
@@ -115,7 +118,8 @@ public class FraudWorkflowService implements Constants {
      */
     @Transactional
     public void handleRuleServiceResponse(RuleServiceResponse ruleServiceResponse) {
-        log.info("handleRuleServiceResponse called with response = {}", ruleServiceResponse);
+        log.info("[{}] handleRuleServiceResponse called with response = {}", ruleServiceResponse.getEventId(),
+                ruleServiceResponse);
 
         // Update workflow state and workflow result
         FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(ruleServiceResponse.getEventId()).orElseThrow();
@@ -133,21 +137,21 @@ public class FraudWorkflowService implements Constants {
      * workflow result, then forwards the statemachine to next state if both ML and Rule service is completed.
      * This function marks the statemachine state as ML_RESPONSE_RECEIVED
      *
-     * @param response The result of the ML Service, this comes through Kafka message from
-     *                 ML Service
+     * @param mlServiceResponse The result of the ML Service, this comes through Kafka message from
+     *                          ML Service
      */
     @Transactional
-    public void handleMLServiceResponse(MLServiceResponse response) {
-        log.info("handleMLServiceResponse called with response = {}", response);
+    public void handleMLServiceResponse(MLServiceResponse mlServiceResponse) {
+        log.info("[{}] handleMLServiceResponse called with response = {}", mlServiceResponse.getEventId(), mlServiceResponse);
 
         // Update workflow state and workflow result
-        FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(response.getEventId()).orElseThrow();
+        FraudDetectionWorkflowEntity workflow = fraudDetectionWorkflowRepo.findById(mlServiceResponse.getEventId()).orElseThrow();
         workflow.setMlCompleted(true);
-        workflow.setMlResult(response.getResult());
+        workflow.setMlResult(mlServiceResponse.getResult());
         fraudDetectionWorkflowRepo.save(workflow);
 
         // Forward to next state
-        DepositEvent depositEvent = depositEventRepository.findByEventId(response.getEventId()).getFirst();
+        DepositEvent depositEvent = depositEventRepository.findByEventId(mlServiceResponse.getEventId()).getFirst();
         sendSMEventNUpdateDepositEvent(depositEvent, FraudEvent.ML_RESPONSE_RECEIVED);
 
         // Check if ML and Rule service completed, if yes then trigger all service completion state
@@ -163,6 +167,7 @@ public class FraudWorkflowService implements Constants {
      */
     private void checkConsortiumNImageServiceCompletionToTriggerML(DepositEvent depositEvent, FraudDetectionWorkflowEntity workflow) throws JsonProcessingException {
         if (workflow.isConsortiumCompleted() && workflow.isImageCompleted()) {
+            log.info("[{}] both Consortium and Image service completed for this event, so triggering ML service", depositEvent.getEventId());
             triggerML(depositEvent, workflow);
         }
     }
@@ -191,6 +196,8 @@ public class FraudWorkflowService implements Constants {
      */
     private void tryComplete(DepositEvent depositEvent, FraudDetectionWorkflowEntity workflow) {
         if (workflow.isMlCompleted() && workflow.isRuleCompleted()) {
+            log.info("[{}] both ML and Rule service completed for this event, so triggering ALL_COMPLETED StateMachine state",
+                    depositEvent.getEventId());
             sendSMEventNUpdateDepositEvent(depositEvent, FraudEvent.ALL_COMPLETED);
         }
     }
