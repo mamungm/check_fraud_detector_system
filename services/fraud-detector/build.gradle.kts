@@ -26,6 +26,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-websocket")
     implementation("org.springframework.statemachine:spring-statemachine-starter:4.0.1")
+    implementation("org.springframework.statemachine:spring-statemachine-core:4.0.1")
     implementation("org.postgresql:postgresql")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
@@ -44,9 +45,14 @@ dependencies {
 
     implementation("org.json:json:20251224")
 
+    testImplementation("org.springframework.boot:spring-boot-starter-test") {
+        exclude(group = "com.vaadin.external.google", module = "android-json")
+    }
     testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
     testImplementation("org.springframework.boot:spring-boot-starter-kafka-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+    // Mockito for unit tests
+    testImplementation("org.mockito:mockito-junit-jupiter")
     testCompileOnly("org.projectlombok:lombok")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testAnnotationProcessor("org.projectlombok:lombok")
@@ -58,6 +64,12 @@ hibernate {
     }
 }
 
+tasks.named("processTestAot") {
+    enabled = false
+}
+
 tasks.withType<Test> {
     useJUnitPlatform()
+    // Disable Spring Test AOT processing for unit tests which can fail for complex beans
+    systemProperty("spring.test.context.aot.enabled", "false")
 }

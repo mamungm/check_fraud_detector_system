@@ -33,6 +33,8 @@ dependencies {
 	annotationProcessor("org.projectlombok:lombok:1.18.34")
 	annotationProcessor("org.projectlombok:lombok-mapstruct-binding:0.2.0")
 	testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
+	// Add Mockito for unit testing
+	testImplementation("org.mockito:mockito-junit-jupiter:5.5.0")
 	implementation("org.postgresql:postgresql")
 	testCompileOnly("org.projectlombok:lombok")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")

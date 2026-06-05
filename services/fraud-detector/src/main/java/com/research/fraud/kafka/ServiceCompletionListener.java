@@ -39,7 +39,6 @@ public class ServiceCompletionListener {
             String wsSessionId = eventWSSessionMapper.getWSSessionIdFromEventId(evt.eventId());
             log.info("WS Session Id: {}", wsSessionId);
 
-            Thread.sleep(2000);
             messagingTemplate.convertAndSend(
                     SINGLE_SERVICE_COMPLETION_TOPIC,
                     singleServiceCompletionResponsePreparer.prepareConsortiumServiceResponseMessage(evt)
@@ -64,7 +63,6 @@ public class ServiceCompletionListener {
             String wsSessionId = eventWSSessionMapper.getWSSessionIdFromEventId(evt.eventId());
             log.info("WS Session Id: {}", wsSessionId);
 
-            Thread.sleep(2000);
             messagingTemplate.convertAndSend(
                     SINGLE_SERVICE_COMPLETION_TOPIC,
                     singleServiceCompletionResponsePreparer.prepareImageServiceResponseMessage(evt)
@@ -113,7 +111,6 @@ public class ServiceCompletionListener {
             String wsSessionId = eventWSSessionMapper.getWSSessionIdFromEventId(evt.eventId());
             log.info("WS Session Id: {}", wsSessionId);
 
-            Thread.sleep(2000);
             messagingTemplate.convertAndSend(
                     SINGLE_SERVICE_COMPLETION_TOPIC,
                     singleServiceCompletionResponsePreparer.prepareMLServiceResponseMessage(evt)
