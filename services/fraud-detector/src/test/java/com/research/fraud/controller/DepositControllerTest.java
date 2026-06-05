@@ -16,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -57,6 +58,11 @@ class DepositControllerTest {
      */
     @RestControllerAdvice
     static class TestExceptionHandler {
+        @ExceptionHandler(HttpMessageNotReadableException.class)
+        public ResponseEntity<Void> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+
         @ExceptionHandler(RuntimeException.class)
         public ResponseEntity<Void> handleRuntimeException(RuntimeException ex) {
             return ResponseEntity.internalServerError().build();
