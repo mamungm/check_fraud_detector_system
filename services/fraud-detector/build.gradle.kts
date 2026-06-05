@@ -64,7 +64,7 @@ hibernate {
     }
 }
 
-tasks.named("processTestAot") {
+tasks.matching { it.name in setOf("processAot", "processTestAot") }.configureEach {
     enabled = false
 }
 
