@@ -59,7 +59,7 @@ public class DepositEvent {
 
     private String imageBackUri;
 
-    private boolean fraudLabel = false;
+    private boolean fraudLabel;
 
     @Enumerated(EnumType.STRING)
     private WorkflowState workflow;

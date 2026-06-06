@@ -18,7 +18,7 @@ public class DepositEventDTO {
     private DepositEvent.Channel channel;
     private OffsetDateTime depositTimestamp;
     private BigDecimal amount;
-    private String currency = "CAD";
+    private String currency;
     private String accountToken;
     private String payeeToken;
     private String payorToken;
