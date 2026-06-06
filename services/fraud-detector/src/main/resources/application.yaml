@@ -8,9 +8,9 @@ spring:
       enabled: false
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/frauddb
-    username: fraud
-    password: fraud
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/frauddb}
+    username: ${SPRING_DATASOURCE_USERNAME:fraud}
+    password: ${SPRING_DATASOURCE_PASSWORD:fraud}
   jpa:
     hibernate:
       #      ddl-auto: create
@@ -21,7 +21,7 @@ spring:
         jdbc:
           time_zone: UTC
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 fraud:
   kafka:
     topics:

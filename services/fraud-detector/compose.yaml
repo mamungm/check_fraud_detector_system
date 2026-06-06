@@ -1,4 +1,24 @@
 services:
+  fraud-detector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fraud-detector:latest
+    container_name: fraud-detector
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/frauddb
+      SPRING_DATASOURCE_USERNAME: fraud
+      SPRING_DATASOURCE_PASSWORD: fraud
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      ML_SERVICE_URL: http://host.docker.internal:8001
+      IMAGE_SERVICE_URL: http://host.docker.internal:8002
+      CONSORTIUM_SERVICE_URL: http://host.docker.internal:8003
+    ports:
+      - "8080:8080"
+
   postgres:
     image: postgres:16
     container_name: fraud-postgres
@@ -30,13 +50,13 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
 
-      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,CONTROLLER://kafka:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://0.0.0.0:9092,CONTROLLER://kafka:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
 
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
 
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
 
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk

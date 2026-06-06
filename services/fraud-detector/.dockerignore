@@ -1,0 +1,25 @@
+.gradle
+.idea
+.vscode
+out
+bin
+src
+.gradle-cache
+*.iml
+*.iws
+*.ipr
+.git
+.gitignore
+Dockerfile
+compose.yaml
+HELP.md
+gradle
+gradlew
+gradlew.bat
+build.gradle.kts
+settings.gradle.kts
+
+# Keep only the packaged application artifact in the Docker build context.
+build/*
+!build/libs
+!build/libs/*.jar
