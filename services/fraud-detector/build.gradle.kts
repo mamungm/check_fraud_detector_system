@@ -3,6 +3,7 @@ plugins {
     id("org.springframework.boot") version "4.0.6"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.hibernate.orm") version "7.2.12.Final"
+    id("org.graalvm.buildtools.native") version "0.11.5"
 }
 
 group = "com.research.fraud"
@@ -63,7 +64,7 @@ hibernate {
     }
 }
 
-tasks.matching { it.name == "processTestAot" }.configureEach {
+tasks.matching { it.name in setOf("processAot", "processTestAot") }.configureEach {
     enabled = false
 }
 

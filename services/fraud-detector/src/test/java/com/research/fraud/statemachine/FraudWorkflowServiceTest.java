@@ -48,6 +48,7 @@ class FraudWorkflowServiceTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
+        objectMapper.findAndRegisterModules();
         fraudWorkflowService = new FraudWorkflowService(
                 kafkaTemplate,
                 stateMachineFactory,
