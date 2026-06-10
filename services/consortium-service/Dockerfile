@@ -2,14 +2,17 @@ FROM python:3.14.4-slim
 WORKDIR /app
 ENV PYTHONPATH=/app
 
-COPY consortium-service/requirements.txt .
+COPY services/consortium-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY consortium-service/consortium_app.py .
-COPY consortium-service/controller ./controller
-COPY consortium-service/db ./db
-COPY consortium-service/dtos ./dtos
-COPY consortium-service/service ./service
-COPY commons/*.py ./services/commons/
+COPY services/consortium-service/consortium_app.py .
+COPY services/consortium-service/controller ./controller
+COPY services/consortium-service/db ./db
+COPY services/consortium-service/dtos ./dtos
+COPY services/consortium-service/service ./service
+COPY services/commons/*.py ./services/commons/
+
+COPY synthetic-data/out/images/check_1_normal.png ./images/check_1_normal.png
+COPY synthetic-data/out/images/back_check_1_normal.png ./images/back_check_1_normal.png
 
 CMD ["uvicorn","consortium_app:app","--host","0.0.0.0","--port","8003"]

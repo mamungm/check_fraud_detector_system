@@ -76,8 +76,8 @@ services:
 
   image-service:
     build:
-      context: ./services
-      dockerfile: image-service/Dockerfile
+      context: ./
+      dockerfile: services/image-service/Dockerfile
     image: image-service:latest
     container_name: image-service
     depends_on:
@@ -92,8 +92,8 @@ services:
 
   consortium-service:
     build:
-      context: ./services
-      dockerfile: consortium-service/Dockerfile
+      context: ./
+      dockerfile: services/consortium-service/Dockerfile
     image: consortium-service:latest
     container_name: consortium-service
     depends_on:
@@ -122,6 +122,17 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     ports:
       - "8004:8004"
+
+  check-fraud-app:
+    build:
+      context: ./check_fraud_app
+      dockerfile: Dockerfile
+    image: check-fraud-app:latest
+    container_name: check-fraud-app
+    depends_on:
+      - fraud-detector
+    ports:
+      - "3000:80"
 
 #
 #  prometheus:

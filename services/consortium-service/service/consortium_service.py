@@ -18,6 +18,10 @@ from db.repo.consortium_repositories import add_consortium_event, add_token_inde
 from dtos.consortium_dtos import FraudDispositionEventRequest, ConsortiumEventRequest, ConsortiumScoreResponse
 from typing import List
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 # -----------------------------
 # Utility
@@ -76,7 +80,7 @@ def set_fraud_disposition(event_id: str, fraud_disposition: FraudDispositionEven
     #         e.fraudDisposition = fraud_disposition.fraudDisposition
     #         print(f"Updated event {event_id} with fraud disposition {fraud_disposition.fraudDisposition}")
     #         return
-    print(f"Event {event_id} not found to update fraud disposition")
+    logger.info(f"Event {event_id} not found to update fraud disposition")
 
 
 # -----------------------------
@@ -470,6 +474,7 @@ def compute_image_fingerprint(event: ConsortiumEventRequest):
 
 
 def consortium_process_event(event: ConsortiumEventRequest, db: Session) -> ConsortiumScoreResponse:
+    logger.info("Processing consortium event:", event)
     compute_image_fingerprint(event)
     features = ConsortiumFeatureService.compute_features(event, db)
     result = CrossInstitutionEvidenceService.explain(features)

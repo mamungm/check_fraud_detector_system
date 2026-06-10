@@ -2,14 +2,17 @@ FROM python:3.14.4-slim
 WORKDIR /app
 ENV PYTHONPATH=/app
 
-COPY image-service/requirements.txt .
+COPY services/image-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY image-service/image_app.py .
-COPY image-service/controller ./controller
-COPY image-service/db ./db
-COPY image-service/dtos ./dtos
-COPY image-service/service ./service
-COPY commons/*.py ./services/commons/
+COPY services/image-service/image_app.py .
+COPY services/image-service/controller ./controller
+COPY services/image-service/db ./db
+COPY services/image-service/dtos ./dtos
+COPY services/image-service/service ./service
+COPY services/commons/*.py ./services/commons/
+
+COPY synthetic-data/out/images/check_1_normal.png ./images/check_1_normal.png
+COPY synthetic-data/out/images/back_check_1_normal.png ./images/back_check_1_normal.png
 
 CMD ["uvicorn","image_app:app","--host","0.0.0.0","--port","8002"]

@@ -65,8 +65,8 @@ export const DepositEventCreateComponent: React.FC<DepositEventCreateComponentPr
             "checkSerialHash": "serial_hmac_hash",
             "micrRoutingHash": "routing_hmac_hash",
             "micrAccountHash": "micr_account_hmac_hash",
-            "imageFrontUri": "/Users/mamungm/Desktop/Reading/MUN/Semester_5/check_fraud_detector_system/synthetic-data/out/images/check_1_normal.png",
-            "imageBackUri": "/Users/mamungm/Desktop/Reading/MUN/Semester_5/check_fraud_detector_system/synthetic-data/out/images/back_check_1_normal.png"
+            "imageFrontUri": "/app/images/check_1_normal.png",
+            "imageBackUri": "/app/images/back_check_1_normal.png"
         }}
     >
         <Form.Item name="institutionId" label="Institution ID" rules={[{required: true}]}>
