@@ -56,9 +56,6 @@ services:
       SPRING_DATASOURCE_USERNAME: fraud
       SPRING_DATASOURCE_PASSWORD: fraud
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      ML_SERVICE_URL: http://host.docker.internal:8001
-      IMAGE_SERVICE_URL: http://host.docker.internal:8002
-      CONSORTIUM_SERVICE_URL: http://host.docker.internal:8003
     ports:
       - "8080:8080"
 
@@ -108,6 +105,23 @@ services:
       KAFKA_COMPLETION_TOPIC: Consortium_Service_Response
     ports:
       - "8003:8003"
+
+  rules-service:
+    build:
+      context: ./services/rules-service
+      dockerfile: Dockerfile
+    image: rules-service:latest
+    container_name: rules-service
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/frauddb
+      SPRING_DATASOURCE_USERNAME: fraud
+      SPRING_DATASOURCE_PASSWORD: fraud
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8004:8004"
 
 #
 #  prometheus:
