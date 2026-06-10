@@ -3,12 +3,12 @@ import json
 import os
 import time
 
+from services.commons.kafka_event_handler import KafkaEventHandler
+from services.commons.kafka_completion import CompletionReporter
 from aiokafka import AIOKafkaProducer
 
 from db.connection.image_db_connection import get_db_session_from_context
 from dtos.image_dtos import ImageAnalysisRequest
-from kafka_completion import CompletionReporter
-from kafka_event_handler import KafkaEventHandler
 from service.image_service import image_process_event
 
 
