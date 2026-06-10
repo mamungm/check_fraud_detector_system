@@ -1,9 +1,10 @@
 from sqlalchemy import create_engine
+import os
 from sqlalchemy.orm import sessionmaker, Session
 from contextlib import contextmanager
 from db.entity.consortium_entities import Base
 
-db_url = "postgresql://fraud:fraud@localhost:5432/frauddb"
+db_url = os.getenv("DATABASE_URL", "postgresql://fraud:fraud@host.docker.internal:5432/frauddb")
 engine = create_engine(db_url)
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

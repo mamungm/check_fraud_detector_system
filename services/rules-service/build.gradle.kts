@@ -43,7 +43,7 @@ dependencies {
 
 hibernate {
 	enhancement {
-		enableAssociationManagement = true
+		enableAssociationManagement = false
 	}
 }
 

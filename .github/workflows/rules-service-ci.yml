@@ -1,4 +1,4 @@
-name: Fraud Detector CI
+name: Rules Service CI
 
 on:
   workflow_call:
@@ -9,7 +9,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: services/fraud-detector
+        working-directory: services/rules-service
 
     steps:
       - name: Checkout repository
@@ -34,5 +34,5 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: fraud-detector-jar
-          path: services/fraud-detector/build/libs/*.jar
+          name: rules-service-jar
+          path: services/rules-service/build/libs/*.jar

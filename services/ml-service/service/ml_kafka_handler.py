@@ -39,7 +39,7 @@ class MLKafkaHandler(KafkaEventHandler):
 
 
 async def ml_lifespan(stop_event: asyncio.Event):
-    bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+    bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "host.docker.internal:9092")
     completion_topic = os.getenv("KAFKA_COMPLETION_TOPIC", "ML_Service_Response")
 
     producer = AIOKafkaProducer(bootstrap_servers=bootstrap)

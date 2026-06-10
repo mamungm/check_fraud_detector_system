@@ -1,0 +1,26 @@
+name: Services CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "services/fraud-detector/**"
+      - "services/rules-service/**"
+      - ".github/workflows/services-ci.yml"
+      - ".github/workflows/fraud-detector-ci.yml"
+      - ".github/workflows/rules-service-ci.yml"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "services/fraud-detector/**"
+      - "services/rules-service/**"
+      - ".github/workflows/services-ci.yml"
+      - ".github/workflows/fraud-detector-ci.yml"
+      - ".github/workflows/rules-service-ci.yml"
+
+jobs:
+  fraud-detector:
+    uses: ./.github/workflows/fraud-detector-ci.yml
+
+  rules-service:
+    uses: ./.github/workflows/rules-service-ci.yml
