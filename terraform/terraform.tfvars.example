@@ -1,0 +1,38 @@
+project     = "fraud-detector"
+environment = "dev"
+aws_region  = "ca-central-1"
+
+# For demo, keep open. For better security, replace with your public IP/CIDR, e.g. "203.0.113.10/32".
+allowed_ingress_cidr = "0.0.0.0/0"
+
+# Leave empty for HTTP-only MVP. For production, create an ACM cert and put its ARN here.
+acm_certificate_arn = ""
+
+# Docker image tag used by ECS task definitions.
+image_tag = "latest"
+
+# Optional: if you already have Docker images outside the ECR repositories created by this Terraform,
+# override them here.
+# service_image_overrides = {
+#   orchestrator = "123456789012.dkr.ecr.ca-central-1.amazonaws.com/fraud-orchestrator:v1"
+#   ml           = "123456789012.dkr.ecr.ca-central-1.amazonaws.com/fraud-ml-service:v1"
+#   rule         = "123456789012.dkr.ecr.ca-central-1.amazonaws.com/fraud-rule-service:v1"
+#   image        = "123456789012.dkr.ecr.ca-central-1.amazonaws.com/fraud-image-service:v1"
+#   consortium   = "123456789012.dkr.ecr.ca-central-1.amazonaws.com/fraud-consortium-service:v1"
+# }
+
+spring_profile = "prod"
+container_port = 8080
+
+db_name              = "frauddb"
+db_username          = "fraud_admin"
+db_instance_class    = "db.t4g.micro"
+db_allocated_storage = 20
+db_multi_az          = false
+
+msk_kafka_version       = "3.6.0"
+msk_instance_type       = "kafka.t3.small"
+msk_broker_volume_size  = 20
+
+jwt_secret         = "replace-with-a-long-random-secret"
+consortium_api_key = "replace-with-real-key-or-keep-mock"
