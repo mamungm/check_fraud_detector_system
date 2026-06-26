@@ -24,8 +24,8 @@ public class ServiceCompletionListener {
     private final SingleServiceCompletionResponsePreparer singleServiceCompletionResponsePreparer;
 
     @KafkaListener(
-            topics = "Consortium_Service_Response",
-            groupId = "${fraud.kafka.consumer-group:fraud-detector-completions}"
+            topics = "${fraud.Kafka.topics.consortium-service-response}",
+            groupId = "${fraud.Kafka.consumer-group}"
     )
     public void onConsortiumServiceResponseMessage(String payload) {
         try {
@@ -49,8 +49,8 @@ public class ServiceCompletionListener {
     }
 
     @KafkaListener(
-            topics = "Image_Service_Response",
-            groupId = "${fraud.kafka.consumer-group:fraud-detector-completions}"
+            topics = "${fraud.Kafka.topics.image-service-response}",
+            groupId = "${fraud.Kafka.consumer-group}"
     )
     public void onImageServiceResponseMessage(String payload) {
         try {
@@ -73,8 +73,8 @@ public class ServiceCompletionListener {
     }
 
     @KafkaListener(
-            topics = "Rule_Service_Response",
-            groupId = "${fraud.kafka.consumer-group:fraud-detector-completions}"
+            topics = "${fraud.Kafka.topics.rule-service-response}",
+            groupId = "${fraud.Kafka.consumer-group}"
     )
     public void onRuleServiceResponseMessage(String payload) {
         try {
@@ -97,8 +97,8 @@ public class ServiceCompletionListener {
     }
 
     @KafkaListener(
-            topics = "ML_Service_Response",
-            groupId = "${fraud.kafka.consumer-group:fraud-detector-completions}"
+            topics = "${fraud.Kafka.topics.ml-service-response}",
+            groupId = "${fraud.Kafka.consumer-group}"
     )
     public void onMLServiceResponseMessage(String payload) {
         try {

@@ -21,17 +21,12 @@ spring:
         jdbc:
           time_zone: UTC
   kafka:
-    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
 fraud:
-  kafka:
+  Kafka:
     topics:
-      service-completed: check.deposit.service.completed
-      all-services-completed: check.deposit.all.services.completed
-    # Comma-separated list. Must match the `service_name` used by downstream services.
-    required-services: consortium,image,ml
+      consortium-service-response: Consortium_Service_Response
+      image-service-response: Image_Service_Response
+      rule-service-response: Rule_Service_Response
+      ml-service-response: ML_Service_Response
     consumer-group: fraud-detector-completions
-    tracker-ttl: PT10M
-  services:
-    ml: ${ML_SERVICE_URL:http://localhost:8001}
-    image: ${IMAGE_SERVICE_URL:http://localhost:8002}
-    consortium: ${CONSORTIUM_SERVICE_URL:http://localhost:8003}
