@@ -16,7 +16,6 @@ COPY services/image-service/dtos ./dtos
 COPY services/image-service/service ./service
 COPY services/commons/*.py ./services/commons/
 
-COPY synthetic-data/out/images/check_1_normal.png ./images/check_1_normal.png
-COPY synthetic-data/out/images/back_check_1_normal.png ./images/back_check_1_normal.png
+COPY synthetic-data/out/images/*.png ./images/
 
 CMD ["uvicorn","image_app:app","--host","0.0.0.0","--port","8002"]

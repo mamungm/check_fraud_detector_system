@@ -21,7 +21,7 @@ spring:
         jdbc:
           time_zone: UTC
   kafka:
-    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    bootstrap-servers: localhost:29092
 fraud:
   Kafka:
     topics:

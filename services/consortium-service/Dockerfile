@@ -12,7 +12,6 @@ COPY services/consortium-service/dtos ./dtos
 COPY services/consortium-service/service ./service
 COPY services/commons/*.py ./services/commons/
 
-COPY synthetic-data/out/images/check_1_normal.png ./images/check_1_normal.png
-COPY synthetic-data/out/images/back_check_1_normal.png ./images/back_check_1_normal.png
+COPY synthetic-data/out/images/*.png ./images/
 
 CMD ["uvicorn","consortium_app:app","--host","0.0.0.0","--port","8003"]

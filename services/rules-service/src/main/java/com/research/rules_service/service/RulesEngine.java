@@ -53,6 +53,8 @@ public class RulesEngine {
             hits.put("rule_high_amount_check", hit("HIGH_AMOUNT_CHECK", "MEDIUM", Map.of("amount", e.amount().doubleValue())));
         }
 
+        log.info("hits - " + hits);
+
         return hits;
     }
 
