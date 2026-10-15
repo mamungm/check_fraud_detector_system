@@ -44,7 +44,7 @@ def clamp01(x):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default="../training-data")
+    ap.add_argument("--out", default="out")
     ap.add_argument("--rows", type=int, default=8000)
     ap.add_argument("--institutions", type=int, default=5)
     ap.add_argument("--seed", type=int, default=42)

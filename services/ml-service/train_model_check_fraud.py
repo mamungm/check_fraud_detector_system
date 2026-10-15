@@ -20,7 +20,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 
 
-DATA_PATH = "../../training-data/check_fraud_training.csv"
+DATA_PATH = "../../synthetic-data/out/check_fraud_training.csv"
 MODEL_DIR = "models"
 MODEL_PATH = f"{MODEL_DIR}/deposit_fraud_model.joblib"
 METRICS_PATH = f"{MODEL_DIR}/deposit_fraud_metrics.json"
