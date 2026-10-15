@@ -154,3 +154,36 @@ def get_bank_flow_events(
         })
         for row in rows
     ]
+
+
+# ---------------------------------------
+# Fraud disposition + stats
+# ---------------------------------------
+def update_fraud_disposition(event_id: str, disposition, db: Session) -> bool:
+    """Set the disposition on the event and on every index row copy.
+
+    Scoring reads fraudDisposition from consortium_events (via the index joins),
+    the index tables keep a denormalized copy that is updated for consistency.
+    Returns False if the event does not exist.
+    """
+    value = disposition.value if hasattr(disposition, "value") else str(disposition)
+
+    event = db.query(ConsortiumEventEntity).filter(ConsortiumEventEntity.eventId == event_id).one_or_none()
+    if event is None:
+        return False
+
+    event.fraudDisposition = disposition
+    for entity in (TokenIndexEntity, RelationIndexEntity, BankFlowIndexEntity):
+        db.query(entity).filter(entity.event_id == event_id).update(
+            {entity.fraud_disposition: value}, synchronize_session=False
+        )
+    return True
+
+
+def get_index_counts(db: Session) -> dict:
+    return {
+        "eventCount": db.query(ConsortiumEventEntity).count(),
+        "tokenIndexSize": db.query(TokenIndexEntity).count(),
+        "relationshipIndexSize": db.query(RelationIndexEntity).count(),
+        "bankFlowIndexSize": db.query(BankFlowIndexEntity).count(),
+    }

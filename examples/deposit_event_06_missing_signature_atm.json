@@ -1,0 +1,18 @@
+{
+  "institutionId": "86efe916-b870-44e9-9fad-4a3d5e1c91c7",
+  "clearingInstitutionId": "2fe45f80-93b6-45e5-9054-ff11293d941d",
+  "channel": "ATM",
+  "depositTimestamp": "2026-10-15T11:00:00-02:30",
+  "amount": 3150.75,
+  "currency": "CAD",
+  "accountToken": "acct_a006",
+  "payeeToken": "payee_p006",
+  "payorToken": "payor_q006",
+  "deviceToken": "device_known_d006",
+  "region": "AB",
+  "checkSerialHash": "serial_hash_100006",
+  "micrRoutingHash": "routing_hash_4",
+  "micrAccountHash": "micr_account_hash_100006",
+  "imageFrontUri": "/app/images/check_1118_missing_signature.png",
+  "imageBackUri": "/app/images/back_check_1118_missing_signature.png"
+}

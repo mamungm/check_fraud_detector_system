@@ -1,0 +1,18 @@
+{
+  "institutionId": "6d70bc23-f2db-4dd1-ae44-8a9bf3895a0a",
+  "clearingInstitutionId": "eafc8cb5-46c3-4a7a-bab8-b7e615bcda6c",
+  "channel": "ATM",
+  "depositTimestamp": "2026-10-15T08:20:00-02:30",
+  "amount": 1500.0,
+  "currency": "CAD",
+  "accountToken": "acct_a010",
+  "payeeToken": "payee_p009",
+  "payorToken": "payor_q009",
+  "deviceToken": "device_NEW_d010",
+  "region": "AB",
+  "checkSerialHash": "serial_hash_100009",
+  "micrRoutingHash": "routing_hash_100009",
+  "micrAccountHash": "micr_account_hash_100009",
+  "imageFrontUri": "/app/images/check_4_normal.png",
+  "imageBackUri": "/app/images/back_check_4_normal.png"
+}

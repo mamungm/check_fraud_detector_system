@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 import uuid
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from enum import Enum
 
 
@@ -19,7 +19,7 @@ class FraudDispositionEventRequest(BaseModel):
     fraudDisposition: FraudDisposition
 
 class ConsortiumEventRequest(BaseModel):
-    eventId: Optional[str] = str(uuid.uuid4())
+    eventId: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()))
     institutionId: str
     clearingInstitutionId: Optional[str] = None
 

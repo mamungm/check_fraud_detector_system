@@ -1,0 +1,18 @@
+{
+  "institutionId": "6d70bc23-f2db-4dd1-ae44-8a9bf3895a0a",
+  "clearingInstitutionId": "86efe916-b870-44e9-9fad-4a3d5e1c91c7",
+  "channel": "mobile",
+  "depositTimestamp": "2026-10-15T03:25:00-02:30",
+  "amount": 5400.0,
+  "currency": "CAD",
+  "accountToken": "acct_a005",
+  "payeeToken": "payee_p005",
+  "payorToken": "payor_q005",
+  "deviceToken": "device_NEW_d005",
+  "region": "OUT_OF_REGION",
+  "checkSerialHash": "serial_hash_100005",
+  "micrRoutingHash": "routing_hash_1",
+  "micrAccountHash": "micr_account_hash_100005",
+  "imageFrontUri": "/app/images/check_1011_counterfeit.png",
+  "imageBackUri": "/app/images/back_check_1011_counterfeit.png"
+}

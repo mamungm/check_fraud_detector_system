@@ -63,9 +63,9 @@ docker compose up --build
 Example request:
 
 ```bash
-curl -X POST http://localhost:8080/api/deposits \
+curl -X POST http://localhost:8080/api/deposit_request \
   -H "Content-Type: application/json" \
-  -d @examples/deposit_event.json
+  -d @examples/deposit_event_05_counterfeit_mobile.json
 ```
 
 ### Down the containers and remove locally built images:

@@ -1,0 +1,18 @@
+{
+  "institutionId": "2fe45f80-93b6-45e5-9054-ff11293d941d",
+  "clearingInstitutionId": "eafc8cb5-46c3-4a7a-bab8-b7e615bcda6c",
+  "channel": "mobile",
+  "depositTimestamp": "2026-10-15T08:00:00-02:30",
+  "amount": 1500.0,
+  "currency": "CAD",
+  "accountToken": "acct_a009",
+  "payeeToken": "payee_p009",
+  "payorToken": "payor_q009",
+  "deviceToken": "device_known_d009",
+  "region": "BC",
+  "checkSerialHash": "serial_hash_100009",
+  "micrRoutingHash": "routing_hash_100009",
+  "micrAccountHash": "micr_account_hash_100009",
+  "imageFrontUri": "/app/images/check_4_normal.png",
+  "imageBackUri": "/app/images/back_check_4_normal.png"
+}

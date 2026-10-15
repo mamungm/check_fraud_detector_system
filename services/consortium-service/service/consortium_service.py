@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from db.entity.consortium_entities import ConsortiumEventEntity, TokenIndexEntity, TokenType, RelationIndexEntity, \
     BankFlowIndexEntity
 from db.repo.consortium_repositories import add_consortium_event, add_token_index, add_relation_index, get_token_events, \
-    get_relation_events, get_bank_flow_events, add_bank_flow_index
+    get_relation_events, get_bank_flow_events, add_bank_flow_index, update_fraud_disposition
 from dtos.consortium_dtos import FraudDispositionEventRequest, ConsortiumEventRequest, ConsortiumScoreResponse
 from typing import List
 
@@ -74,13 +74,13 @@ def recent(events: List[ConsortiumEventRequest], now: datetime, days: int) -> Li
     ]
 
 
-def set_fraud_disposition(event_id: str, fraud_disposition: FraudDispositionEventRequest, db: Session):
-    # for e in EVENTS:
-    #     if e.eventId == event_id:
-    #         e.fraudDisposition = fraud_disposition.fraudDisposition
-    #         print(f"Updated event {event_id} with fraud disposition {fraud_disposition.fraudDisposition}")
-    #         return
-    logger.info(f"Event {event_id} not found to update fraud disposition")
+def set_fraud_disposition(event_id: str, fraud_disposition: FraudDispositionEventRequest, db: Session) -> bool:
+    updated = update_fraud_disposition(event_id, fraud_disposition.fraudDisposition, db)
+    if updated:
+        logger.info("Updated event %s with fraud disposition %s", event_id, fraud_disposition.fraudDisposition.value)
+    else:
+        logger.warning("Event %s not found to update fraud disposition", event_id)
+    return updated
 
 
 # -----------------------------
@@ -153,7 +153,8 @@ class TokenLinkService:
 class NetworkRiskAggregator:
 
     @staticmethod
-    def token_frequency_risk(token_type: TokenType, token: Optional[str], now: datetime, db: Session) -> Dict[str, Any]:
+    def token_frequency_risk(token_type: TokenType, token: Optional[str], now: datetime, db: Session,
+                             current_institution: Optional[str] = None) -> Dict[str, Any]:
         events = get_token_events(token_type, token, db)
 
         e7 = recent(events, now, 7)
@@ -170,7 +171,10 @@ class NetworkRiskAggregator:
             score += 0.45
             reasons.append(f"PAYEE_SEEN_IN_{len(inst14)}_INSTITUTIONS_14D")
 
-        if token_type == TokenType.IMAGE and len(unique_institutions(e30)) >= 2:
+        # The event being scored is indexed only after scoring, so add its institution here:
+        # the same image seen earlier at ANOTHER bank must count as "2 institutions".
+        image_institutions30 = unique_institutions(e30) | ({current_institution} if current_institution else set())
+        if token_type == TokenType.IMAGE and len(image_institutions30) >= 2:
             score += 0.65
             reasons.append("SAME_IMAGE_HASH_SEEN_AT_MULTIPLE_INSTITUTIONS")
 
@@ -319,7 +323,7 @@ class ConsortiumFeatureService:
         for token_type, token in token_inputs:
             if token:
                 token_results.append(
-                    NetworkRiskAggregator.token_frequency_risk(token_type, token, now, db)
+                    NetworkRiskAggregator.token_frequency_risk(token_type, token, now, db, event.institutionId)
                 )
 
         relationship_result = NetworkRiskAggregator.payor_payee_relationship_risk(
@@ -450,27 +454,30 @@ def compute_phash(image_uri: str) -> str:
 
 
 def compute_image_fingerprint(event: ConsortiumEventRequest):
-    front_phash = compute_phash(event.imageFrontUri) if event.imageFrontUri else None
+    """Fingerprint of the physical check, identical for every presentment of the same check.
 
+    Built only from properties of the check itself: front/back perceptual hashes, MICR
+    (routing + account + serial) and amount/currency. It deliberately excludes the depositor
+    (accountToken), device, timestamp and channel, which differ between presentments.
+    """
+    front_phash = compute_phash(event.imageFrontUri) if event.imageFrontUri else None
     back_phash = compute_phash(event.imageBackUri) if event.imageBackUri else None
 
-    micr_string = f"{event.micrRoutingHash}|{event.accountToken}|{event.checkSerialHash}"
+    micr_string = f"{event.micrRoutingHash}|{event.micrAccountHash}|{event.checkSerialHash}"
     micr_hash = hashlib.sha256(micr_string.encode()).hexdigest()
 
-    normalized = f"PAYEE:{(event.payeeToken or "").upper().strip()}AMOUNT:{event.amount:.2f}DATE:{event.depositTimestamp}"
-    ocr_hash = hashlib.sha256(normalized.encode()).hexdigest()
+    amount_string = f"{event.amount:.2f}|{(event.currency or '').upper().strip()}"
+    amount_hash = hashlib.sha256(amount_string.encode()).hexdigest()
 
     fingerprint_string = "|".join([
         f"front={front_phash}",
         f"back={back_phash}",
         f"micr={micr_hash}",
-        f"serial={micr_hash}",
-        f"ocr={ocr_hash}",
+        f"serial={event.checkSerialHash}",
+        f"amount={amount_hash}",
     ])
 
-    image_fingerprint = hashlib.sha256(fingerprint_string.encode()).hexdigest()
-
-    event.imageFingerprint = image_fingerprint
+    event.imageFingerprint = hashlib.sha256(fingerprint_string.encode()).hexdigest()
 
 
 def consortium_process_event(event: ConsortiumEventRequest, db: Session) -> ConsortiumScoreResponse:

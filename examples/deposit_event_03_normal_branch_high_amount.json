@@ -1,0 +1,18 @@
+{
+  "institutionId": "085341c4-3b68-4772-a060-0d528bd13233",
+  "clearingInstitutionId": "2fe45f80-93b6-45e5-9054-ff11293d941d",
+  "channel": "branch",
+  "depositTimestamp": "2026-10-14T15:05:00-02:30",
+  "amount": 9800.0,
+  "currency": "CAD",
+  "accountToken": "acct_a003",
+  "payeeToken": "payee_p003",
+  "payorToken": "payor_q003",
+  "deviceToken": "device_branch_d003",
+  "region": "ON",
+  "checkSerialHash": "serial_hash_100003",
+  "micrRoutingHash": "routing_hash_3",
+  "micrAccountHash": "micr_account_hash_100003",
+  "imageFrontUri": "/app/images/check_3_normal.png",
+  "imageBackUri": "/app/images/back_check_3_normal.png"
+}
