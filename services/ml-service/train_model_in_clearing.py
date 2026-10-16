@@ -189,7 +189,7 @@ def main():
     brier = brier_score_loss(y_test, y_prob)
 
     metrics = {
-        "model_name": "deposit_fraud_xgboost",
+        "model_name": "in_clearing_fraud_xgboost",
         "model_version": "0.1.0",
         "train_rows": int(len(X_train)),
         "test_rows": int(len(X_test)),

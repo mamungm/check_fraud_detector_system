@@ -49,21 +49,26 @@ public class MLServiceRequestDataPreparer {
                         depositEvent.getAccountToken(), OffsetDateTime.now(ZoneOffset.UTC).minusDays(7)))
                 .account_avg_amount_30d(depositEventRepository.getAverageAmountLast30Days(
                         depositEvent.getAccountToken(), OffsetDateTime.now(ZoneOffset.UTC).minusDays(30)))
+                // The model was trained on a 0/1 flag (1 = new device). The count includes the current deposit,
+                // so a count of 1 or less means this device was never seen before for this account.
                 .account_new_device(depositEventRepository.countDepositEventsByAccountTokenAndDeviceToken(
-                        depositEvent.getAccountToken(), depositEvent.getDeviceToken()))
+                        depositEvent.getAccountToken(), depositEvent.getDeviceToken()) <= 1 ? 1.0f : 0.0f)
                 .days_since_deposit(ChronoUnit.DAYS.between(depositEvent.getDepositTimestamp(), OffsetDateTime.now(ZoneOffset.UTC)))
                 .clearing_amount_matches_deposit(true)
                 .drawee_bank_prior_fraud_30d(depositEventRepository.countPriorFraudsForDraweeBank30d(
-                        depositEvent.getInstitutionId(), OffsetDateTime.now(ZoneOffset.UTC).minusDays(30)))
+                        depositEvent.getClearingInstitutionId() != null
+                                ? depositEvent.getClearingInstitutionId() : depositEvent.getInstitutionId(), OffsetDateTime.now(ZoneOffset.UTC).minusDays(30)))
                 .deposit_to_clearing_bank_risk(consortiumResult.getDetails().getExplanation().getScoreBlend().getBankFlowRisk())
 
-                .return_code_present(1.0f)
-                .chargeback_present(1.0f)
-                .loss_amount(1.0f)
+                // Outcomes (returns, chargebacks, losses) do not exist yet when a deposit is scored.
+                // Rules run in parallel with the other services, so their results are not available here either.
+                // Sending constants of 1 pushed every deposit towards HOLD, so these stay 0 until real values exist.
+                .return_code_present(0.0f)
+                .chargeback_present(0.0f)
+                .loss_amount(0.0f)
 
-
-                .rule_hit_count(1.0f)
-                .critical_rule_hit_count(1.0f)
+                .rule_hit_count(0.0f)
+                .critical_rule_hit_count(0.0f)
                 .build();
     }
 }

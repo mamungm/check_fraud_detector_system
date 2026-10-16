@@ -39,7 +39,7 @@ public interface DepositEventRepository extends JpaRepository<DepositEvent, UUID
     @Query("""
                 SELECT COUNT(e)
                 FROM DepositEvent e
-                WHERE (e.clearingInstitutionId = :institutionId OR e.institutionId = :institutionId)
+                WHERE e.clearingInstitutionId = :institutionId
                   AND e.fraudLabel = true
                   AND e.depositTimestamp >= :fromTime
             """)

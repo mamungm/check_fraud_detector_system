@@ -5,8 +5,8 @@ from fastapi import APIRouter
 from dtos.ml_dtos import FraudScoreResponse, DepositScoreRequest, InClearingScoreRequest, CombinedScoreResponse, \
     CombinedScoreRequest
 from service.ml_service import risk_band, recommended_action, score_inclearing_model, \
-    score_deposit_model, approximate_deposit_feature_contributions, approximate_in_clearing_feature_contributions, \
-    combined_process_event, DEPOSIT_MODEL_PATH, IN_CLEARING_MODEL_PATH
+    score_deposit_model, deposit_feature_contributions, in_clearing_feature_contributions, \
+    combined_process_event, models_status, DEPOSIT_META, IN_CLEARING_META
 
 router = APIRouter(prefix="/ml", tags=["ml"])
 
@@ -17,7 +17,7 @@ def score_deposit(req: DepositScoreRequest):
 
     row = req.model_dump()
     prob = score_deposit_model(row)
-    contributions = approximate_deposit_feature_contributions(row)
+    contributions = deposit_feature_contributions(row)
 
     return FraudScoreResponse(
         eventId=req.eventId,
@@ -26,8 +26,8 @@ def score_deposit(req: DepositScoreRequest):
         recommendedAction=recommended_action(prob),
         topFeatureContributions=contributions,
         latencyMs=int((time.time() - start) * 1000),
-        modelName="deposit_fraud_xgboost",
-        modelVersion="0.1.0"
+        modelName=DEPOSIT_META["modelName"],
+        modelVersion=DEPOSIT_META["modelVersion"]
     )
 
 
@@ -37,7 +37,7 @@ def score_in_clearing(req: InClearingScoreRequest):
 
     row = req.model_dump()
     prob = score_inclearing_model(row)
-    contributions = approximate_in_clearing_feature_contributions(row)
+    contributions = in_clearing_feature_contributions(row)
 
     return FraudScoreResponse(
         eventId=req.eventId,
@@ -46,21 +46,18 @@ def score_in_clearing(req: InClearingScoreRequest):
         recommendedAction=recommended_action(prob),
         topFeatureContributions=contributions,
         latencyMs=int((time.time() - start) * 1000),
-        modelName="in_clearing_fraud_xgboost",
-        modelVersion="0.1.0"
+        modelName=IN_CLEARING_META["modelName"],
+        modelVersion=IN_CLEARING_META["modelVersion"]
     )
 
 
 @router.post("/score/combined", response_model=CombinedScoreResponse)
 def score_combined(req: CombinedScoreRequest):
-    print("score/combined api called with event:", req)
     return combined_process_event(req)
 
 
 @router.get("/health")
 def health():
-    return {
-        "status": "ok",
-        "depositModelLoaded": DEPOSIT_MODEL_PATH.exists(),
-        "inClearingModelLoaded": IN_CLEARING_MODEL_PATH.exists()
-    }
+    status = models_status()
+    ok = status["depositModelLoaded"] and status["inClearingModelLoaded"]
+    return {"status": "ok" if ok else "degraded", **status}

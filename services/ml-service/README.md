@@ -156,20 +156,34 @@ LOW/MINIMAL → PASS
 This converts raw ML output into decisions that a fraud operations team can use.
 
 ### 9. Explainability Layer
-The implementation includes approximate feature contributions.
+Reasons come from the models themselves: XGBoost TreeSHAP (`pred_contribs`), averaged over the three calibration folds.
+Values are in log-odds of the uncalibrated model. Positive pushes towards fraud, negative pushes away. The one-hot
+`channel` columns are summed back into a single `channel` feature.
 
-This is not true SHAP explainability. Instead, it multiplies feature values by predefined weights:
-```python
-approxContribution = feature_value × explanation_weight
+```json
+{"feature": "image_duplicate_score", "value": 0.95, "contribution": 2.3597}
 ```
-The purpose is to produce analyst-friendly reasons such as:
-```text
-image_duplicate_score=0.9
-critical_rule_hit_count=1
-payee_fraud_count_30d=2
-deposit_to_clearing_bank_risk=0.7
-```
-This gives a quick explanation of why the model considered an event risky.
+`topReasons` lists only features with a positive contribution. If SHAP fails for any reason, the service falls back to
+the old approximation (`feature_value × hand-set weight`, key `approxContribution`), which is not tied to the model.
+
+### 9a. Inputs the Java service must send
+| Field | What is sent | Why |
+|---|---|---|
+| `account_new_device` | 1 if the device was never seen for this account, else 0 | The model was trained on a 0/1 flag. A count would always be treated as "new" |
+| `rule_hit_count`, `critical_rule_hit_count` | 0 | Rules run in parallel with the other services, so results are not available when ML is triggered. Constants of 1 pushed a benign deposit from PASS (0.05) to HOLD (0.86) |
+| `return_code_present`, `chargeback_present`, `loss_amount` | 0 | These outcomes do not exist at scoring time |
+| `drawee_bank_prior_fraud_30d` | Frauds at the clearing bank (deposit bank if unknown) | Was previously computed from the deposit bank |
+| `channel` | Any case | Lowercased before scoring. Training values: atm, branch, mobile, online, mail |
+
+### 9b. Health and metadata
+`GET /ml/health` returns `status: ok` only when both models loaded, otherwise `degraded` with the load errors. The
+service no longer crashes at import if a model file is missing. `modelName` and `modelVersion` in responses come from
+the `*_metrics.json` files next to the models.
+
+### 9c. Known limits
+- Training data is synthetic and the label is generated from the same scenario flags as the features, so PR-AUC (0.98 and 0.94) overstates real performance.
+- The image-service reports a neutral font score of 0.3 for checks with too few glyphs. The model can read values around 0.3 as mildly suspicious (a benign check at 0.27 gets +1.45 log-odds from this feature). Retrain on image-service output to remove this skew.
+- `days_since_deposit` is about 0 when scored at deposit time.
 
 ### 10. Evaluation Metrics
 The training scripts evaluate the models using:

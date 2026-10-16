@@ -44,7 +44,7 @@ async def ml_lifespan(stop_event: asyncio.Event):
 
     producer = AIOKafkaProducer(bootstrap_servers=bootstrap)
     await producer.start()
-    reporter = CompletionReporter(producer, topic=completion_topic, service_name="image")
+    reporter = CompletionReporter(producer, topic=completion_topic, service_name="ml")
 
     topics = ["ML_Service_CMD"]
     handlers = [

@@ -30,4 +30,4 @@ app.include_router(router=router)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("ml_app:app", host="0.0.0.0", port=8083, reload=True)
+    uvicorn.run("ml_app:app", host="0.0.0.0", port=8001, reload=True)
