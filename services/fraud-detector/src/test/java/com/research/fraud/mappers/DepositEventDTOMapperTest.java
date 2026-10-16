@@ -2,7 +2,10 @@ package com.research.fraud.mappers;
 
 import com.research.fraud.db.entity.DepositEvent;
 import com.research.fraud.dto.DepositEventDTO;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.research.fraud.dto.DepositEventResponse;
+import com.research.fraud.statemachine.FraudDetectionWorkflowEntity;
+import com.research.fraud.statemachine.FraudDetectionWorkflowRepo;
 import com.research.fraud.statemachine.WorkflowState;
 import org.junit.jupiter.api.Test;
 
@@ -12,10 +15,12 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 class DepositEventDTOMapperTest {
 
-    private final DepositEventDTOMapper mapper = new DepositEventDTOMapper();
+    private final FraudDetectionWorkflowRepo workflowRepo = mock(FraudDetectionWorkflowRepo.class);
+    private final DepositEventDTOMapper mapper = new DepositEventDTOMapper(workflowRepo, new ObjectMapper());
 
     @Test
     void toDTO_mapsAllFields_andSetsFinalFraudProbabilityToZero() {
@@ -90,5 +95,72 @@ class DepositEventDTOMapperTest {
         assertEquals(1, response.depositEventList().size());
         assertEquals(event.getEventId(), response.depositEventList().getFirst().getEventId());
     }
-}
 
+    private DepositEvent simpleEvent() {
+        return DepositEvent.builder()
+                .eventId(UUID.randomUUID())
+                .depositTimestamp(OffsetDateTime.now())
+                .amount(new BigDecimal("10.00"))
+                .currency("CAD")
+                .workflow(WorkflowState.COMPLETED)
+                .build();
+    }
+
+    @Test
+    void toDTO_readsScoresAndServiceFlagsFromWorkflow() {
+        DepositEvent event = simpleEvent();
+        FraudDetectionWorkflowEntity workflow = FraudDetectionWorkflowEntity.builder()
+                .eventId(event.getEventId())
+                .imageCompleted(true)
+                .consortiumCompleted(true)
+                .mlCompleted(true)
+                .ruleCompleted(false)
+                .mlResult("{\"status\":\"SUCCESS\",\"details\":{\"depositFraudProbability\":0.42,"
+                        + "\"finalFraudProbability\":0.91,\"calibratedRiskBand\":\"HIGH\","
+                        + "\"recommendedAction\":\"HOLD\"}}")
+                .build();
+
+        DepositEventDTO dto = mapper.toDTO(event, workflow);
+
+        assertEquals(0.42f, dto.getDepositFraudProbability(), 0.0001f);
+        assertEquals(0.91f, dto.getFinalFraudProbability(), 0.0001f);
+        assertEquals("HIGH", dto.getCalibratedRiskBand());
+        assertEquals("HOLD", dto.getRecommendedAction());
+        assertTrue(dto.isImageCompleted());
+        assertTrue(dto.isConsortiumCompleted());
+        assertTrue(dto.isMlCompleted());
+        assertFalse(dto.isRuleCompleted());
+    }
+
+    @Test
+    void toDTO_ignoresFailedOrMissingMlResult() {
+        DepositEvent event = simpleEvent();
+        FraudDetectionWorkflowEntity failed = FraudDetectionWorkflowEntity.builder()
+                .eventId(event.getEventId())
+                .mlCompleted(true)
+                .mlResult("{\"status\":\"FAILED\",\"error\":\"boom\"}")
+                .build();
+
+        DepositEventDTO dto = mapper.toDTO(event, failed);
+        assertEquals(0.0f, dto.getFinalFraudProbability());
+        assertNull(dto.getCalibratedRiskBand());
+        assertNull(dto.getRecommendedAction());
+        assertTrue(dto.isMlCompleted());
+
+        DepositEventDTO noWorkflow = mapper.toDTO(event, null);
+        assertEquals(0.0f, noWorkflow.getFinalFraudProbability());
+        assertFalse(noWorkflow.isImageCompleted());
+        assertFalse(noWorkflow.isMlCompleted());
+    }
+
+    @Test
+    void toDTO_doesNotThrowOnInvalidMlJson() {
+        DepositEvent event = simpleEvent();
+        FraudDetectionWorkflowEntity workflow = FraudDetectionWorkflowEntity.builder()
+                .eventId(event.getEventId())
+                .mlResult("not json")
+                .build();
+
+        assertDoesNotThrow(() -> mapper.toDTO(event, workflow));
+    }
+}
