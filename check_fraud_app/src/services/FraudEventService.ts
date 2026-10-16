@@ -1,6 +1,11 @@
 import type {FraudEvent, WorkflowDetails} from "../models/FraudEvent";
 
 const API_BASE = "http://localhost:8080/api";
+const IMAGE_SERVICE_BASE = "http://localhost:8002/image";
+
+/** URL the browser can load a check image from (the image service serves the file stored under `uri`). */
+export const checkImageUrl = (uri: string): string =>
+    `${IMAGE_SERVICE_BASE}/file?uri=${encodeURIComponent(uri)}`;
 
 export const FraudEventService = {
     async getAllEvents(): Promise<FraudEvent[]> {

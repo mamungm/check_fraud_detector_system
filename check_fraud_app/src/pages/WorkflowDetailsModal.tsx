@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- the service responses are loosely typed JSON */
 import React, {useEffect, useState} from "react";
-import {Collapse, Descriptions, Modal, Progress, Space, Spin, Table, Tag, Typography} from "antd";
-import {FraudEventService} from "../services/FraudEventService";
+import {Collapse, Descriptions, Image, Modal, Progress, Space, Spin, Table, Tabs, Tag, Typography} from "antd";
+import {checkImageUrl, FraudEventService} from "../services/FraudEventService";
 import type {WorkflowDetails} from "../models/FraudEvent.ts";
 import getRiskColor from "../config/ColorConfig.ts";
 
@@ -9,6 +9,8 @@ const {Text} = Typography;
 
 interface Props {
     eventId: string | null;
+    frontUri?: string;
+    backUri?: string;
     onClose: () => void;
 }
 
@@ -34,6 +36,8 @@ const REASON_TEXT: Record<string, string> = {
     MISSING_SIGNATURE: 'No signature was detected',
     MISSING_ENDORSEMENT: 'No endorsement was detected on the back',
 };
+/** Shown when the ML result carries no formula text (older results). */
+const DEFAULT_FINAL_FORMULA = 'max(deposit_prob, 0.45 * deposit_prob + 0.55 * in_clearing_prob)';
 const explain = (code: string) => REASON_TEXT[code] ?? code.replace(/_/g, ' ').toLowerCase();
 
 /** Small coloured message box. */
@@ -279,7 +283,7 @@ const MlBody: React.FC<{ result: any }> = ({result}) => {
             <Descriptions size="small" column={1} bordered style={{marginTop: 12}} items={[
                 {key: 'band', label: 'Risk band', children: <Tag color={riskTagColor[d.calibratedRiskBand] ?? 'default'}>{d.calibratedRiskBand}</Tag>},
                 {key: 'action', label: 'Recommended action', children: <Tag color={actionTagColor[d.recommendedAction] ?? 'default'}>{d.recommendedAction}</Tag>},
-                {key: 'formula', label: 'How the final score is made', children: <Text code>{ex.scoreBlend?.finalFormula}</Text>},
+                {key: 'formula', label: 'How the final score is made', children: <Text code>{ex.scoreBlend?.finalFormula ?? DEFAULT_FINAL_FORMULA}</Text>},
             ]}/>
             <ContributionTable title="What moved the deposit score" rows={ex.depositFeatureContributions}/>
             <ContributionTable title="What moved the in-clearing score" rows={ex.inClearingFeatureContributions}/>
@@ -342,8 +346,32 @@ const buildSections = (w: WorkflowDetails): Section[] => {
     ];
 };
 
+/** One check side, or a message when the file cannot be shown. */
+const CheckSide: React.FC<{ title: string; uri?: string }> = ({title, uri}) => (
+    <div style={{flex: '1 1 320px', minWidth: 0}}>
+        <Text strong>{title}</Text>
+        <div style={{marginTop: 8, border: '1px solid #f0f0f0', borderRadius: 6, padding: 8, textAlign: 'center'}}>
+            {uri
+                ? <Image src={checkImageUrl(uri)} alt={title} style={{maxWidth: '100%'}}
+                         fallback="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='140'%3E%3Ctext x='50%25' y='50%25' fill='%238c8c8c' font-family='sans-serif' font-size='14' text-anchor='middle'%3EImage not available%3C/text%3E%3C/svg%3E"/>
+                : <Text type="secondary">No image was provided.</Text>}
+        </div>
+        {uri && <Text type="secondary" style={{fontSize: 12, wordBreak: 'break-all'}}>{uri}</Text>}
+    </div>
+);
+
+/** Front and back of the deposited check. Click an image to enlarge it. */
+const ChequeImages: React.FC<{ frontUri?: string; backUri?: string }> = ({frontUri, backUri}) => (
+    <Image.PreviewGroup>
+        <div style={{display: 'flex', gap: 16, flexWrap: 'wrap'}}>
+            <CheckSide title="Front" uri={frontUri}/>
+            <CheckSide title="Back" uri={backUri}/>
+        </div>
+    </Image.PreviewGroup>
+);
+
 /** Loads and shows the details of one event. Mounted only while a popup is open, so its state starts fresh. */
-const WorkflowDetailsContent: React.FC<{ eventId: string }> = ({eventId}) => {
+const WorkflowDetailsContent: React.FC<{ eventId: string; frontUri?: string; backUri?: string }> = ({eventId, frontUri, backUri}) => {
     const [details, setDetails] = useState<WorkflowDetails | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -384,28 +412,43 @@ const WorkflowDetailsContent: React.FC<{ eventId: string }> = ({eventId}) => {
                 </div>
             </div>
 
-            <Collapse
-                defaultActiveKey={['ml']}
-                items={sections.map(s => ({
-                    key: s.key,
-                    style: {borderLeft: `5px solid ${s.completed ? s.color : '#d9d9d9'}`, marginBottom: 8},
-                    label: (
-                        <Space wrap>
-                            <Text strong>{s.title}</Text>
-                            {statusTag(s.completed, s.result)}
-                            {s.completed && s.headline && <Text style={{color: s.color, fontWeight: 600}}>{s.headline}</Text>}
-                        </Space>
-                    ),
-                    children: s.completed && s.result
-                        ? s.body
-                        : <Text type="secondary">This service has not responded yet.</Text>,
-                }))}
+            <Tabs
+                items={[
+                    {
+                        key: 'analysis',
+                        label: 'Analysis',
+                        children: (
+                <Collapse
+                    defaultActiveKey={['ml']}
+                    items={sections.map(s => ({
+                        key: s.key,
+                        style: {borderLeft: `5px solid ${s.completed ? s.color : '#d9d9d9'}`, marginBottom: 8},
+                        label: (
+                            <Space wrap>
+                                <Text strong>{s.title}</Text>
+                                {statusTag(s.completed, s.result)}
+                                {s.completed && s.headline && <Text style={{color: s.color, fontWeight: 600}}>{s.headline}</Text>}
+                            </Space>
+                        ),
+                        children: s.completed && s.result
+                            ? s.body
+                            : <Text type="secondary">This service has not responded yet.</Text>,
+                    }))}
+                />
+                        ),
+                    },
+                    {
+                        key: 'images',
+                        label: 'Cheque images',
+                        children: <ChequeImages frontUri={frontUri} backUri={backUri}/>,
+                    },
+                ]}
             />
         </>
     );
 };
 
-export const WorkflowDetailsModal: React.FC<Props> = ({eventId, onClose}) => (
+export const WorkflowDetailsModal: React.FC<Props> = ({eventId, frontUri, backUri, onClose}) => (
     <Modal
         open={eventId !== null}
         onCancel={onClose}
@@ -413,6 +456,6 @@ export const WorkflowDetailsModal: React.FC<Props> = ({eventId, onClose}) => (
         width={820}
         title="Fraud analysis details"
     >
-        {eventId !== null && <WorkflowDetailsContent key={eventId} eventId={eventId}/>}
+        {eventId !== null && <WorkflowDetailsContent key={eventId} eventId={eventId} frontUri={frontUri} backUri={backUri}/>}
     </Modal>
 );

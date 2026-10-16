@@ -246,7 +246,11 @@ export const FraudDashboard: React.FC = () => {
             </Content>
 
             {/* Workflow details of one deposit (opened from the Action column) */}
-            <WorkflowDetailsModal eventId={workflowEventId} onClose={() => setWorkflowEventId(null)}/>
+            <WorkflowDetailsModal
+                eventId={workflowEventId}
+                frontUri={events.find(e => e.eventId === workflowEventId)?.imageFrontUri}
+                backUri={events.find(e => e.eventId === workflowEventId)?.imageBackUri}
+                onClose={() => setWorkflowEventId(null)}/>
 
             {/* Event Detail Modal */}
             <Modal
