@@ -3,12 +3,14 @@ package com.research.fraud.controller;
 import com.research.fraud.dto.DepositEventDTO;
 import com.research.fraud.dto.DepositEventRequest;
 import com.research.fraud.dto.DepositEventResponse;
+import com.research.fraud.dto.WorkflowDetailsDTO;
 import com.research.fraud.service.DepositService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
@@ -25,5 +27,12 @@ public class DepositController {
     @GetMapping("/deposit_event_list")
     public ResponseEntity<List<DepositEventDTO>> getDepositEventList() {
         return ResponseEntity.ok(service.getDepositEventList());
+    }
+
+    @GetMapping("/deposit_event/{eventId}/workflow")
+    public ResponseEntity<WorkflowDetailsDTO> getWorkflowDetails(@PathVariable UUID eventId) {
+        return service.getWorkflowDetails(eventId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

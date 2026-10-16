@@ -4,6 +4,7 @@ import com.research.fraud.db.entity.DepositEvent;
 import com.research.fraud.dto.DepositEventDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.research.fraud.dto.DepositEventResponse;
+import com.research.fraud.dto.WorkflowDetailsDTO;
 import com.research.fraud.statemachine.FraudDetectionWorkflowEntity;
 import com.research.fraud.statemachine.FraudDetectionWorkflowRepo;
 import com.research.fraud.statemachine.WorkflowState;
@@ -12,10 +13,13 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class DepositEventDTOMapperTest {
 
@@ -162,5 +166,37 @@ class DepositEventDTOMapperTest {
                 .build();
 
         assertDoesNotThrow(() -> mapper.toDTO(event, workflow));
+    }
+
+    @Test
+    void buildWorkflowDetails_parsesEachServiceResult() {
+        UUID eventId = UUID.randomUUID();
+        FraudDetectionWorkflowEntity workflow = FraudDetectionWorkflowEntity.builder()
+                .eventId(eventId)
+                .consortiumCompleted(true)
+                .imageCompleted(true)
+                .ruleCompleted(true)
+                .mlCompleted(false)
+                .consortiumResult("{\"service\":\"consortium\",\"details\":{\"score\":0.5}}")
+                .imageResult("not json")
+                .ruleResult("{\"service\":\"rule\",\"details\":{}}")
+                .build();
+        when(workflowRepo.findById(eventId)).thenReturn(Optional.of(workflow));
+
+        WorkflowDetailsDTO dto = mapper.buildWorkflowDetails(eventId).orElseThrow();
+
+        Map<?, ?> consortiumDetails = (Map<?, ?>) dto.getConsortiumResult().get("details");
+        assertEquals(0.5, ((Number) consortiumDetails.get("score")).doubleValue(), 0.0001);
+        assertEquals("consortium", dto.getConsortiumResult().get("service"));
+        assertNull(dto.getImageResult());          // unreadable result is dropped, not an error
+        assertTrue(dto.getRuleResult().get("details") instanceof Map);
+        assertNull(dto.getMlResult());             // ML has not responded yet
+        assertTrue(dto.isConsortiumCompleted());
+        assertFalse(dto.isMlCompleted());
+    }
+
+    @Test
+    void buildWorkflowDetails_emptyWhenWorkflowMissing() {
+        assertTrue(mapper.buildWorkflowDetails(UUID.randomUUID()).isEmpty());
     }
 }

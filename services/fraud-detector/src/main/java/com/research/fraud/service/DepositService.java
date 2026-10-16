@@ -5,6 +5,7 @@ import com.research.fraud.db.repo.DepositEventRepository;
 import com.research.fraud.dto.DepositEventDTO;
 import com.research.fraud.dto.DepositEventRequest;
 import com.research.fraud.dto.DepositEventResponse;
+import com.research.fraud.dto.WorkflowDetailsDTO;
 import com.research.fraud.mappers.DepositEventDTOMapper;
 import com.research.fraud.mappers.DepositEventMapper;
 import com.research.fraud.statemachine.FraudDetectionWorkflowEntity;
@@ -21,6 +22,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -60,5 +62,9 @@ public class DepositService {
         return events.stream()
                 .map(e -> depositEventDtoMapper.toDTO(e, workflows.get(e.getEventId())))
                 .collect(Collectors.toList());
+    }
+
+    public Optional<WorkflowDetailsDTO> getWorkflowDetails(UUID eventId) {
+        return depositEventDtoMapper.buildWorkflowDetails(eventId);
     }
 }

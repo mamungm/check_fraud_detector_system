@@ -13,6 +13,7 @@ export interface FraudEvent {
     consortiumCompleted?: boolean;
     mlCompleted?: boolean;
     ruleCompleted?: boolean;
+    workflow?: string;
 }
 
 export interface DepositEvent {
@@ -32,4 +33,19 @@ export interface DepositEvent {
     micrAccountHash: string,
     imageFrontUri: string,
     imageBackUri: string
+}
+
+/** Stored workflow row of one deposit: completion flags and each service's full response (null until it responds). */
+export interface WorkflowDetails {
+    eventId: string;
+    consortiumCompleted: boolean;
+    imageCompleted: boolean;
+    ruleCompleted: boolean;
+    mlCompleted: boolean;
+    consortiumResult: any | null;
+    imageResult: any | null;
+    ruleResult: any | null;
+    mlResult: any | null;
+    createdAt?: string;
+    updatedAt?: string;
 }

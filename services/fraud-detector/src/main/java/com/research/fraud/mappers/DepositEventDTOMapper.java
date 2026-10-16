@@ -2,9 +2,11 @@ package com.research.fraud.mappers;
 
 import com.research.fraud.db.entity.DepositEvent;
 import com.research.fraud.dto.DepositEventDTO;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.research.fraud.dto.DepositEventResponse;
+import com.research.fraud.dto.WorkflowDetailsDTO;
 import com.research.fraud.statemachine.FraudDetectionWorkflowEntity;
 import com.research.fraud.statemachine.FraudDetectionWorkflowRepo;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +14,9 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 @Component
@@ -88,5 +93,37 @@ public class DepositEventDTOMapper {
                 .ruleCompleted(workflow != null && workflow.isRuleCompleted())
                 .createdAt(e.getCreatedAt())
                 .build();
+    }
+
+    /**
+     * Builds the workflow details of one deposit: flags and the parsed response of each service.
+     */
+    public Optional<WorkflowDetailsDTO> buildWorkflowDetails(UUID eventId) {
+        return workflowRepo.findById(eventId).map(w -> WorkflowDetailsDTO.builder()
+                .eventId(w.getEventId())
+                .consortiumCompleted(w.isConsortiumCompleted())
+                .imageCompleted(w.isImageCompleted())
+                .ruleCompleted(w.isRuleCompleted())
+                .mlCompleted(w.isMlCompleted())
+                .consortiumResult(parseJson(eventId, "consortium", w.getConsortiumResult()))
+                .imageResult(parseJson(eventId, "image", w.getImageResult()))
+                .ruleResult(parseJson(eventId, "rule", w.getRuleResult()))
+                .mlResult(parseJson(eventId, "ml", w.getMlResult()))
+                .createdAt(w.getCreatedAt())
+                .updatedAt(w.getUpdatedAt())
+                .build());
+    }
+
+    private Map<String, Object> parseJson(UUID eventId, String service, String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {
+            });
+        } catch (Exception ex) {
+            log.warn("[{}] could not parse {} result: {}", eventId, service, ex.getMessage());
+            return null;
+        }
     }
 }

@@ -79,7 +79,7 @@ Examples 01, 02 and 04 share an account (04 adds a new device), and 09 and 10 ar
 ### Down the containers and remove locally built images:
 
 ```bash
-docker compose down -v --remove-orphans
+docker compose down -v --rmi local --remove-orphans
 docker volume prune -f
 docker volume ls
 ```

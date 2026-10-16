@@ -7,6 +7,7 @@ import {CheckCircleOutlined, CloseCircleOutlined, WarningOutlined} from "@ant-de
 interface FraudEventTableProps {
     events: FraudEvent[];
     onRowClick?: (event: FraudEvent) => void;
+    onActionClick?: (event: FraudEvent) => void;
 }
 
 // One dot per analysis service, green once its flag in the workflow table is true.
@@ -17,7 +18,7 @@ const SERVICES: { key: 'imageCompleted' | 'consortiumCompleted' | 'mlCompleted' 
     {key: 'ruleCompleted', label: 'Rules'},
 ];
 
-export const FraudEventTableComponent: React.FC<FraudEventTableProps> = ({events, onRowClick}) => {
+export const FraudEventTableComponent: React.FC<FraudEventTableProps> = ({events, onRowClick, onActionClick}) => {
     const columns = [
         {
             title: 'Event ID',
@@ -52,6 +53,7 @@ export const FraudEventTableComponent: React.FC<FraudEventTableProps> = ({events
                 <Progress
                     type="circle"
                     percent={Math.round(score * 100)}
+                    format={(percent) => `${percent}%`} // antd shows a check mark at 100% otherwise
                     width={40}
                     strokeColor={getRiskColor(score)}
                 />
@@ -106,14 +108,32 @@ export const FraudEventTableComponent: React.FC<FraudEventTableProps> = ({events
             title: 'Action',
             dataIndex: 'recommendedAction',
             key: 'recommendedAction',
-            render: (action: string) => {
+            render: (action: string, event: FraudEvent) => {
                 const icons: Record<string, React.ReactNode> = {
                     HOLD: <CloseCircleOutlined style={{color: '#ff4d4f'}}/>,
                     MANUAL_REVIEW: <WarningOutlined style={{color: '#faad14'}}/>,
                     PASS: <CheckCircleOutlined style={{color: '#52c41a'}}/>,
                 };
+                // Details are available once every service has answered.
+                const done = Boolean(event.imageCompleted && event.consortiumCompleted
+                    && event.mlCompleted && event.ruleCompleted);
+                const icon = icons[action] || action;
+                if (!done) {
+                    return <span>{icon}</span>;
+                }
                 return (
-                    <span>{icons[action] || action}</span>
+                    <Tooltip title="Show the analysis of every service">
+                        <a
+                            onClick={(e) => {
+                                e.stopPropagation(); // do not also open the row popup
+                                onActionClick?.(event);
+                            }}
+                            style={{display: 'inline-flex', alignItems: 'center', gap: 6}}
+                        >
+                            {icon}
+                            <span>Details</span>
+                        </a>
+                    </Tooltip>
                 );
             },
             width: '10%',

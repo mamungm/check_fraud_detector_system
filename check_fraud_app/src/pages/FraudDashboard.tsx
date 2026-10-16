@@ -21,6 +21,7 @@ import {fetchAllEvents, addEvent} from "../store/fraudEventsSlice";
 import type {DepositEvent, FraudEvent} from "../models/FraudEvent.ts";
 import {FraudEventTableComponent} from "./FraudEventTableComponent.tsx";
 import {DepositEventCreateComponent} from "./DepositEventCreateComponent.tsx";
+import {WorkflowDetailsModal} from "./WorkflowDetailsModal.tsx";
 
 const {Header, Content} = Layout;
 
@@ -32,6 +33,7 @@ export const FraudDashboard: React.FC = () => {
 
     const [selectedEvent, setSelectedEvent] = useState<FraudEvent | null>(null);
     const [modalVisible, setModalVisible] = useState(false);
+    const [workflowEventId, setWorkflowEventId] = useState<string | null>(null);
     const {isConnected, lastMessage, publishDepositRequest} = useFraudWebSocket();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -237,10 +239,14 @@ export const FraudDashboard: React.FC = () => {
                     ) : (
                         <FraudEventTableComponent
                             events={events}
-                            onRowClick={handleRowClick}/>
+                            onRowClick={handleRowClick}
+                            onActionClick={(e) => setWorkflowEventId(e.eventId)}/>
                     )}
                 </Card>
             </Content>
+
+            {/* Workflow details of one deposit (opened from the Action column) */}
+            <WorkflowDetailsModal eventId={workflowEventId} onClose={() => setWorkflowEventId(null)}/>
 
             {/* Event Detail Modal */}
             <Modal
