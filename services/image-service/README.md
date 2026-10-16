@@ -7,87 +7,102 @@ When a check deposit event arrives, the service receives:
 eventId
 amount
 imageFrontUri
-imageBackUri
+imageBackUri                (optional)
+micrRoutingHash             (optional)
+micrAccountHash             (optional)
+checkSerialHash             (optional)
 ```
+Image URIs can be a plain local path or a `file://` URI. The MICR/serial hashes are optional, but they are what makes duplicate detection reliable (see below).
+
+#### Interfaces
+| Interface | Purpose |
+|---|---|
+| `POST /image/analyze` | Analyse one deposit's images and return an `ImageAnalysisResponse`. |
+| `GET /image/health` | Liveness check. |
+| Kafka `Image_Service_CMD` (in) | Same as `/image/analyze`. The result is reported on `Image_Service_Response` (`details` holds the response). |
+
+The service also subscribes to `check.deposit.fraud.decision`, but that topic is currently ignored.
+
 The service loads the check image, extracts visual and textual evidence, applies several heuristic checks, and returns a structured risk explanation.
 The output is not a final fraud decision. Instead, it produces image-level fraud features that can be consumed by a larger fraud scoring system.
 
 #### Image Duplicate Detection
-The service uses perceptual hashing  to detect whether the same or visually similar check image has already appeared. It computes:
+For every front image the service computes and stores in the `image_fingerprint` table:
 ```text
-pHash
-dHash
+pHash          perceptual hash
+dHash          gradient hash
+content_hash   SHA-256 of the decoded grayscale pixels (exact duplicates)
+check_key      SHA-256 of routingHash | accountHash | serialHash (identity of the physical check)
 ```
-The implementation mainly uses `pHash` for comparison. A `pHash - perceptual hash` is different from a cryptographic hash.
-Instead of changing completely when one pixel changes, it remains similar when the image is visually similar.
-This allows the system to detect:
-```text
-same check image reused
-slightly modified duplicate
-near-duplicate deposit image
-```
-If the Hamming distance between the current hash and a previous hash is small, the image receives a high duplicate score. In theory:
-```text
-lower hash distance = higher visual similarity = higher duplicate risk
-```
-This is useful for detecting duplicate presentment, where the same check image may be deposited multiple times.
+A `pHash - perceptual hash` is different from a cryptographic hash. Instead of changing completely when one pixel changes, it stays similar when the image is visually similar.
 
-A low value suggests high duplicate or near-duplicate, which will trigger:
+**A pHash match alone is not treated as a duplicate.** Checks printed from one template look the same to a perceptual hash, because only the serial number and amount text differ. On the synthetic data every check was within distance 2 of every other, so every check was flagged as a duplicate of the previous one. A stored check from another event counts as a duplicate when:
+```text
+its image content is byte-identical (content_hash)                         -> exact resubmission
+OR  pHash distance <= 5  AND  same check_key                              -> re-scan / re-photo of the same check
+```
+For the second case the score is `1.0 - distance / 10`. Without MICR/serial data in the request, only exact resubmissions are detected. The event being analysed is never compared with itself, so Kafka retries of the same `eventId` do not flag themselves. Candidates are looked up by `content_hash` / `check_key` within the last 90 days (up to 500 rows).
+
+A score of 0.8 or more (pHash distance of 2 or less for a re-scan) triggers:
 ```text
 DUPLICATE_OR_NEAR_DUPLICATE_IMAGE
 ```
+The response explanation shows `duplicate_basis` (`EXACT_IMAGE_CONTENT` or `PHASH_AND_SAME_CHECK_IDENTITY`) and the closest stored event.
+This is useful for detecting duplicate presentment, where the same check may be deposited more than once, possibly at different banks.
 
 #### OCR-Based Amount Verification
-The service applies OCR to the front check image using Tesseract. Before OCR, it preprocesses the image:
+The service reads the courtesy amount from the front image with Tesseract and compares it with the submitted `amount`.
+Text on a check is small, so the page is not OCR'd as it is. The amount field (top-right region) is cropped, upscaled 4-5 times and read in single-line mode with the characters restricted to `$ 0-9 , .`. Up to four variants are tried in order and the check stops at the first one that reads the expected amount:
 ```text
-grayscale conversion
-image resizing
-Gaussian blur
-Otsu thresholding
+1. amount field, 4x, grayscale, single line
+2. amount field, 4x, Otsu threshold, text block
+3. amount field, 5x, Otsu threshold, single line
+4. whole page, 3x, Otsu threshold (fallback in case the amount is not in the usual place)
 ```
-This improves text visibility for OCR.
-
-Then it extracts money-like values using regular expressions such as:
+Amounts are then extracted with regular expressions such as:
 ```text
 $1,250.00
 1250.00
+$48153      (separators lost: the last two digits are read as cents)
+$7 16.29    (stray space)
 ```
-The detected OCR amounts are compared against the expected transaction amount. If no OCR amount matches the submitted amount within a small tolerance, the system adds:
+The amount must match exactly in cents. Any difference counts, because any change of the amount is relevant for alteration detection. The result is one of:
 ```text
-OCR_AMOUNT_MISMATCH
+amount read and equal              -> ocr_amount_match = true
+amount read but different          -> ocr_amount_match = false, OCR_AMOUNT_MISMATCH   (possible alteration)
+no amount could be read at all     -> ocr_amount_match = false, OCR_AMOUNT_UNREADABLE (the field cannot be confirmed)
 ```
-The theoretical purpose is to detect possible check alteration, such as when the submitted deposit amount differs from the amount visible on the check.
+`ocr_amount_match` therefore means "the amount was confirmed", and the reason code tells the two failure cases apart. The response explanation lists every amount that was detected.
 
 #### Layout Anomaly Detection
-The service uses edge detection and probabilistic Hough line detection to estimate the structure of the check image.
-A normal check usually has predictable layout elements:
+The service checks whether the front image has the structure of a check form. All sizes are relative to the image width, so the result does not depend on resolution. It counts:
 ```text
-horizontal lines
-signature line
-amount box
-memo line
-routing/account number region
+horizontal rules   long dark horizontal lines (payee, amount-in-words, memo, signature lines, border)
+oblique lines      long straight lines that are neither horizontal nor vertical, found in a "faint ink"
+                   mask (pixels slightly different from the page background)
 ```
-The implementation counts detected lines. The logic is:
+The score is:
 ```text
-reasonable number of lines → low anomaly
-too few lines → suspicious layout
-too many lines → possible noisy or abnormal image
+3 or more oblique lines          -> 0.8   a pattern that does not belong on a form (typical of forged templates)
+fewer than 3 horizontal rules    -> 0.7   the expected form structure is missing
+1-2 oblique lines                -> 0.5
+otherwise                        -> 0.1
 ```
-This is a heuristic way to detect whether the check image resembles a structured check document.
+A score of 0.5 or more adds:
+```text
+LAYOUT_ANOMALY
+```
+Faint background security patterns on real checks could also look like oblique lines. This is a known assumption of the heuristic.
 
 #### Font Anomaly Detection
-The service estimates font inconsistency using connected components. It thresholds the image and detects text-like components. 
-Then it measures the height distribution of those components. The assumption is:
+Alterations happen in the amount field, so the check looks only at that region (top-right of the front image). It uses two signals:
 ```text
-normal check text has somewhat consistent component sizes
-altered checks may contain pasted or edited text with inconsistent font sizes
+glyph height variation   text-like connected components, sized relative to the image; score = 3 x (std / mean of heights)
+foreign ink              a clear share of strongly coloured pixels in the amount field while the rest of the
+                         check is almost monochrome -> 0.9
 ```
-The implementation calculates the coefficient of variation:
-```text
-standard deviation / mean height
-```
-A high value suggests inconsistent text size and may trigger:
+Pasted or overwritten digits and stray marks make glyph heights uneven. If fewer than 3 glyphs can be measured the field cannot be judged and the score is a neutral 0.3, because a short amount such as `$5.00` legitimately has few components.
+A score of 0.5 or more adds:
 ```text
 FONT_INCONSISTENCY
 ```
@@ -115,17 +130,60 @@ If the endorsement score is low, it adds:
 ```text
 ENDORSEMENT_REGION_LOW_INK
 ```
+This is only evaluated when a back image was analysed. With no back image the endorsement score is 0.0, the response includes `BACK_IMAGE_NOT_PROVIDED`, and no endorsement reason is added.
+
+### Reason Code Reference
+The response has no single score. It returns six features and a list of reason codes:
+
+| Reason code | Condition | Feature / measurement |
+|---|---|---|
+| `DUPLICATE_OR_NEAR_DUPLICATE_IMAGE` | `image_duplicate_score >= 0.8` | exact content match, or pHash distance of 2 or less with the same check identity |
+| `OCR_AMOUNT_MISMATCH` | an amount was read but none equals `amount` (exact cents) | `ocr_amount_match` is false |
+| `OCR_AMOUNT_UNREADABLE` | no amount could be read from the image | `ocr_amount_match` is false |
+| `LAYOUT_ANOMALY` | `layout_anomaly_score >= 0.5` | 3 or more oblique lines (0.8), fewer than 3 horizontal rules (0.7), 1-2 oblique lines (0.5); 0.1 otherwise |
+| `FONT_INCONSISTENCY` | `font_anomaly_score >= 0.5` | glyph height variation or foreign ink colour in the amount field; 0.3 (neutral) if fewer than 3 glyphs |
+| `SIGNATURE_REGION_LOW_INK` | `signature_presence_score < 0.5` | edge density of 0.007 or less in the lower-right region |
+| `ENDORSEMENT_REGION_LOW_INK` | `endorsement_score < 0.5` | ink density of 0.012 or less in the back image |
+| `BACK_IMAGE_NOT_PROVIDED` | no `imageBackUri` | informational |
+| `BACK_IMAGE_UNREADABLE` | back image could not be loaded | informational |
+
+If nothing fires the response contains `IMAGE_NO_MAJOR_ANOMALY`. An unreadable front image fails the request.
 
 ### Limitations
 This implementation is an MVP heuristic system, not a forensic-grade check authentication engine.
 
-Main limitations:
+Measured on the synthetic images in `synthetic-data/out/images` (200 normal checks and every fraud sample):
 ```text
-in-memory duplicate hash store is not persistent
-OCR may fail on low-quality images
+Class                  LAYOUT_ANOMALY   FONT_INCONSISTENCY   SIGNATURE_LOW   ENDORSEMENT_LOW
+normal                 0%               0%                   0%              0%
+altered (100)          2%               100%                 -               -
+counterfeit (56)       100%             16%                  -               -
+missing signature      0%               0%                   44%             -
+missing endorsement    0%               0%                   0%              100%
+```
+The 2% layout and 16% font hits on those classes come from combined samples and from counterfeit diagonal lines crossing the amount field.
+
+OCR amount matching on the same images (the synthetic generator draws the true amount on every check, so the target is a match). The tampered column is the same image checked against an amount with one digit changed, which must not match:
+```text
+Class                  correct amount matched   tampered amount wrongly matched
+normal                 80/80                    0/80
+missing signature      19/20                    0/20
+missing endorsement    20/20                    0/20
+altered                33/40  (3 unreadable)    0/40
+counterfeit            13/25                    0/25
+```
+The altered and counterfeit misses are mostly caused by the generator itself: the faint diagonal lines of counterfeits and the scribbles of altered checks are drawn over the amount and overwrite digit strokes, so the digits are physically damaged. The previous OCR matched only 3 of 50 checks. The synthetic generator falls back to Pillow's tiny default font (8 px text), which is why the layout and font thresholds are relative to the image size and not fixed pixel values.
+
+Other limitations:
+```text
+OCR may fail on low-quality images, and the amount field position is assumed to be the usual top-right area (the page-wide fallback is slower and less reliable)
+OCR takes up to about 0.3 s for a clean check and about 1 s when all four variants are needed
 fixed region assumptions may not work for all check templates
 heuristic thresholds are not calibrated
-font and layout checks are simplistic
 no deep learning model is used
+duplicate detection needs MICR/serial data to catch re-scans, exact copies are always detected
+the training data (synthetic-data/generate_training_table.py) simulates these image features from the fraud
+label instead of computing them with this service, so a model trained on it does not see the same feature
+distributions that this service produces
 ```
-In production, the in-memory hash store should be replaced with a persistent database table, and thresholds should be calibrated using real check images.
+In production, thresholds should be calibrated using real check images, and the model should be trained on features produced by this service.

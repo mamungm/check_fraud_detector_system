@@ -9,6 +9,12 @@ class ImageAnalysisRequest(BaseModel):
     imageFrontUri: str
     imageBackUri: Optional[str] = None
 
+    # Optional check identity (same hashes the deposit event carries). When present they let the
+    # duplicate check tell two checks from the same template apart, which image hashes cannot do.
+    micrRoutingHash: Optional[str] = None
+    micrAccountHash: Optional[str] = None
+    checkSerialHash: Optional[str] = None
+
 
 class ImageAnalysisResponse(BaseModel):
     image_duplicate_score: float
