@@ -1,6 +1,6 @@
 import React from "react";
 import type {FraudEvent} from "../models/FraudEvent.ts";
-import {Progress, Table, Tag} from "antd";
+import {Progress, Table, Tag, Tooltip} from "antd";
 import getRiskColor from "../config/ColorConfig.ts";
 import {CheckCircleOutlined, CloseCircleOutlined, WarningOutlined} from "@ant-design/icons";
 
@@ -8,6 +8,14 @@ interface FraudEventTableProps {
     events: FraudEvent[];
     onRowClick?: (event: FraudEvent) => void;
 }
+
+// One dot per analysis service, green once its flag in the workflow table is true.
+const SERVICES: { key: 'imageCompleted' | 'consortiumCompleted' | 'mlCompleted' | 'ruleCompleted'; label: string }[] = [
+    {key: 'imageCompleted', label: 'Image'},
+    {key: 'consortiumCompleted', label: 'Consortium'},
+    {key: 'mlCompleted', label: 'ML'},
+    {key: 'ruleCompleted', label: 'Rules'},
+];
 
 export const FraudEventTableComponent: React.FC<FraudEventTableProps> = ({events, onRowClick}) => {
     const columns = [
@@ -62,6 +70,29 @@ export const FraudEventTableComponent: React.FC<FraudEventTableProps> = ({events
             dataIndex: 'workflow',
             key: 'workflow',
             width: '8%'
+        },
+        {
+            title: 'Services',
+            key: 'services',
+            render: (_: unknown, event: FraudEvent) => (
+                <span style={{display: 'inline-flex', gap: 6}}>
+                    {SERVICES.map(({key, label}) => {
+                        const done = Boolean(event[key]);
+                        return (
+                            <Tooltip key={key} title={`${label}: ${done ? 'completed' : 'pending'}`}>
+                                <span style={{
+                                    width: 10,
+                                    height: 10,
+                                    borderRadius: '50%',
+                                    display: 'inline-block',
+                                    backgroundColor: done ? '#52c41a' : '#d9d9d9',
+                                }}/>
+                            </Tooltip>
+                        );
+                    })}
+                </span>
+            ),
+            width: '8%',
         },
         {
             title: 'Created At',

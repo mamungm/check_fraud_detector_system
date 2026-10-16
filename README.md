@@ -42,16 +42,13 @@ For details on the models, see the [ML service README](services/ml-service/READM
 ### Build jar for Rule Service:
 
 ```bash
-cd services/rules-service && ./gradlew bootJar
-cd ../fraud-detector && ./gradlew bootJar
-cd ../.. && docker compose up --build
+cd services/rules-service && ./gradlew clean bootJar
 ```
 
 ### Build jar for Fraud Detector orchestrator service:
 
 ```bash
-cd services/fraud-detector && ./gradlew bootJar
-cd ../.. && docker compose up --build
+cd services/fraud-detector && ./gradlew clean bootJar
 ```
 
 ### Start the system:
@@ -67,6 +64,17 @@ curl -X POST http://localhost:8080/api/deposit_request \
   -H "Content-Type: application/json" \
   -d @examples/deposit_event_05_counterfeit_mobile.json
 ```
+
+Posting a file directly reuses its tokens and hashes, so a second post of the same file looks like a repeat of the first.
+To send fresh data every time (new tokens and hashes, timestamp set to now), use the scripts in `examples/`:
+
+```bash
+./examples/send_all.sh                  # all 10 examples, in order
+./examples/collect_results.sh           # one example, then prints each service's stored result
+```
+
+The examples use real check images and amounts from `synthetic-data/out`, so the OCR amount matches the image.
+Examples 01, 02 and 04 share an account (04 adds a new device), and 09 and 10 are the same check deposited twice.
 
 ### Down the containers and remove locally built images:
 
@@ -87,3 +95,10 @@ else PASS
 ## Privacy model
 
 The consortium layer stores HMAC tokens, aggregate counts, risk scores, and fraud metadata. It does not store raw cross-institution PII.
+
+
+### Logs
+
+```bash
+mkdir -p logs && docker compose logs --no-color --timestamps > logs/all.log 2>&1
+```

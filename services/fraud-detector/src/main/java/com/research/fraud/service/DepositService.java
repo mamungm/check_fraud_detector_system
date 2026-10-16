@@ -19,6 +19,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -50,9 +52,13 @@ public class DepositService {
     }
 
     public List<DepositEventDTO> getDepositEventList() {
-        return depositEventRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"))
+        List<DepositEvent> events = depositEventRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
+        Map<UUID, FraudDetectionWorkflowEntity> workflows = fraudDetectionWorkflowRepo
+                .findAllById(events.stream().map(DepositEvent::getEventId).toList())
                 .stream()
-                .map(depositEventDtoMapper::toDTO)
+                .collect(Collectors.toMap(FraudDetectionWorkflowEntity::getEventId, w -> w));
+        return events.stream()
+                .map(e -> depositEventDtoMapper.toDTO(e, workflows.get(e.getEventId())))
                 .collect(Collectors.toList());
     }
 }

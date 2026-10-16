@@ -1,0 +1,18 @@
+{
+  "institutionId": "371e3dce-6143-4def-83ae-fa27adba7f05",
+  "clearingInstitutionId": "6eac1beb-691c-4af1-8c0c-396a45f38420",
+  "channel": "mobile",
+  "depositTimestamp": "2026-10-16T00:38:02-02:30",
+  "amount": 9009.91,
+  "currency": "CAD",
+  "accountToken": "acct_ex01",
+  "payeeToken": "payee_ex04",
+  "payorToken": "payor_ex04",
+  "deviceToken": "device_ex04_new_phone",
+  "region": "NL",
+  "checkSerialHash": "serial_hash_727965",
+  "micrRoutingHash": "routing_hash_727965",
+  "micrAccountHash": "micr_account_hash_727965",
+  "imageFrontUri": "/app/images/check_95_altered.png",
+  "imageBackUri": "/app/images/back_check_95_altered.png"
+}

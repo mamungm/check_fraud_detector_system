@@ -1,0 +1,18 @@
+{
+  "institutionId": "9027f711-9c4d-404d-a35b-deb935d6db9a",
+  "clearingInstitutionId": "01537c8e-d2c9-41e8-9908-f8646d7ac493",
+  "channel": "branch",
+  "depositTimestamp": "2026-10-16T00:38:02-02:30",
+  "amount": 5910.18,
+  "currency": "CAD",
+  "accountToken": "acct_ex08",
+  "payeeToken": "payee_ex08",
+  "payorToken": "payor_ex08",
+  "deviceToken": "device_ex08_branch",
+  "region": "OUT_OF_REGION",
+  "checkSerialHash": "serial_hash_979686",
+  "micrRoutingHash": "routing_hash_979686",
+  "micrAccountHash": "micr_account_hash_979686",
+  "imageFrontUri": "/app/images/check_1152_altered_counterfeit.png",
+  "imageBackUri": "/app/images/back_check_1152_altered_counterfeit.png"
+}

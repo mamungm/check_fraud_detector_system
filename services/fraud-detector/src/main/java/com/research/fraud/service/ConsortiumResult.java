@@ -1,5 +1,6 @@
 package com.research.fraud.service;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -7,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @Builder
 @NoArgsConstructor
@@ -20,6 +22,7 @@ public class ConsortiumResult {
     private double ts;
 }
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @Builder
 @NoArgsConstructor
@@ -32,6 +35,7 @@ class ConsortiumDetails {
     private ConsortiumExplanation explanation;
 }
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @Builder
 @NoArgsConstructor
@@ -46,6 +50,7 @@ class SupportingLinkedCounts {
     private BankFlow bankFlow;
 }
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @Builder
 @NoArgsConstructor
@@ -62,6 +67,7 @@ class TokenInfo {
     private int fraudCount30d;
 }
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @Builder
 @NoArgsConstructor
@@ -74,6 +80,7 @@ class PayorPayeeRelationship {
     private String payeePreview;
 }
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @Builder
 @NoArgsConstructor
@@ -86,6 +93,7 @@ class BankFlow {
     private float bankFlowFraudRate30d;
 }
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @Builder
 @NoArgsConstructor
@@ -96,6 +104,7 @@ class RecencyWindows {
     private String longWindow;
 }
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @Builder
 @NoArgsConstructor
@@ -105,6 +114,7 @@ class ConsortiumExplanation {
     private Privacy privacy;
 }
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @Builder
 @NoArgsConstructor
@@ -118,6 +128,7 @@ class ScoreBlend {
     private float bankFlowRisk;
 }
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @Builder
 @NoArgsConstructor

@@ -8,6 +8,11 @@ export interface FraudEvent {
     calibratedRiskBand: string;
     recommendedAction: string;
     timestamp: string;
+    // which services finished analysing the deposit (from the workflow table)
+    imageCompleted?: boolean;
+    consortiumCompleted?: boolean;
+    mlCompleted?: boolean;
+    ruleCompleted?: boolean;
 }
 
 export interface DepositEvent {

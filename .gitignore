@@ -221,3 +221,6 @@ __marimo__/
 /training-data/check_fraud_training.csv
 /services/ml-service/models/
 /services/resources/.$system_architecture.drawio.bkp
+
+# local docker log dumps
+logs/

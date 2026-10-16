@@ -1,5 +1,6 @@
 package com.research.fraud.service;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -7,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @Builder
 @NoArgsConstructor
@@ -20,6 +22,7 @@ public class ImageResult {
     private double ts;
 }
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @Builder
 @NoArgsConstructor
@@ -36,6 +39,7 @@ class ImageDetails {
     private int latencyMs;
 }
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @Builder
 @NoArgsConstructor
@@ -49,6 +53,7 @@ class ImageExplanation {
     private ArrayList<String> limitations;
 }
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @Builder
 @NoArgsConstructor
@@ -57,10 +62,12 @@ class Hashing {
     private String phash;
     private String dhash;
     private float duplicate_score;
+    private String duplicate_basis;
     private String closest_event;
     private float closest_distance;
 }
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @Builder
 @NoArgsConstructor

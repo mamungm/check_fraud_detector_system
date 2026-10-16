@@ -74,6 +74,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      fraud-detector:
+        condition: service_started
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_COMPLETION_TOPIC: ML_Service_Response
@@ -91,6 +93,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      fraud-detector:
+        condition: service_started
     environment:
       DATABASE_URL: postgresql://fraud:fraud@postgres:5432/frauddb
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -109,6 +113,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      fraud-detector:
+        condition: service_started
     environment:
       DATABASE_URL: postgresql://fraud:fraud@postgres:5432/frauddb
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -127,6 +133,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      fraud-detector:
+        condition: service_started
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/frauddb
       SPRING_DATASOURCE_USERNAME: fraud

@@ -30,6 +30,15 @@ public class DepositEventDTO {
     private String imageFrontUri;
     private String imageBackUri;
     private WorkflowState workflow;
+    private float depositFraudProbability;
     private float finalFraudProbability;
+    private String calibratedRiskBand;
+    private String recommendedAction;
+
+    // Which services have finished analysing this deposit (from the workflow table)
+    private boolean imageCompleted;
+    private boolean consortiumCompleted;
+    private boolean mlCompleted;
+    private boolean ruleCompleted;
     private OffsetDateTime createdAt;
 }
