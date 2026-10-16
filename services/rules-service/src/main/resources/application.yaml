@@ -1,5 +1,5 @@
 server:
-  port: 8084
+  port: 8004
 spring:
   application:
     name: rules-service
@@ -22,3 +22,9 @@ spring:
           time_zone: UTC
   kafka:
     bootstrap-servers: localhost:29092
+
+rules:
+  velocity-max-deposits7d: 10
+  new-device-lookback-days: 90
+  high-amount-threshold: 5000.0
+  duplicate-lookback-days: 365

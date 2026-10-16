@@ -38,13 +38,13 @@ public class DepositService {
         log.info("workflow state at the start of ingest = {}", WorkflowState.RECEIVED);
         depositEvent = depositEventRepository.save(depositEvent);
 
-        fraudWorkflowService.startWorkflow(depositEvent);
-
         FraudDetectionWorkflowEntity workflowEntity = FraudDetectionWorkflowEntity.builder()
                 .eventId(depositEvent.getEventId())
                 .createdAt(Instant.now())
                 .build();
         fraudDetectionWorkflowRepo.save(workflowEntity);
+
+        fraudWorkflowService.startWorkflow(depositEvent);
 
         return depositEventDtoMapper.buildDepositResponse(depositEvent, "deposit request initiated");
     }

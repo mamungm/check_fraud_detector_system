@@ -16,6 +16,8 @@ import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.config.StateMachineFactory;
 import org.springframework.statemachine.support.DefaultStateMachineContext;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
@@ -46,10 +48,24 @@ public class FraudWorkflowService implements Constants {
         log.info("[{}] sending CONSORTIUM_SERVICE_CMD, IMAGE_SERVICE_CMD, RULE_SERVICE_CMD Kafka commands", depositEvent.getEventId());
         String requestString = objectMapper.writeValueAsString(depositEvent);
 
-        // Send kafka message to Consortium, Image and Rule service so that they can start their processing in parallel
-        kafkaTemplate.send(CONSORTIUM_SERVICE_CMD, requestString);
-        kafkaTemplate.send(IMAGE_SERVICE_CMD, requestString);
-        kafkaTemplate.send(RULE_SERVICE_CMD, requestString);
+        // Send kafka message to Consortium, Image and Rule service so that they can start their processing in parallel.
+        // The messages go out after the surrounding transaction commits, so the services can already read this
+        // deposit (and its workflow row) from the database when they start.
+        Runnable sendCommands = () -> {
+            kafkaTemplate.send(CONSORTIUM_SERVICE_CMD, requestString);
+            kafkaTemplate.send(IMAGE_SERVICE_CMD, requestString);
+            kafkaTemplate.send(RULE_SERVICE_CMD, requestString);
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    sendCommands.run();
+                }
+            });
+        } else {
+            sendCommands.run();
+        }
     }
 
     /**
