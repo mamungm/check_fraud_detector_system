@@ -61,7 +61,7 @@ class MLServiceRequestDataPreparerTest {
                 eq(depositEvent.getAccountToken()),
                 any(OffsetDateTime.class)
         )).thenReturn(200.0f);
-        when(depositEventRepository.countDepositEventsByAccountTokenAndDeviceToken(depositEvent.getAccountToken(), depositEvent.getDeviceToken())).thenReturn(0);
+        when(depositEventRepository.countDepositEventsByAccountTokenAndDeviceToken(depositEvent.getAccountToken(), depositEvent.getDeviceToken())).thenReturn(1);
         when(depositEventRepository.countPriorFraudsForDraweeBank30d(
                 eq(depositEvent.getInstitutionId()),
                 any(OffsetDateTime.class)
@@ -112,7 +112,8 @@ class MLServiceRequestDataPreparerTest {
         assertEquals(depositEvent.getAmount().floatValue(), req.getAmount());
         assertEquals(5.0f, req.getAccount_deposit_count_7d());
         assertEquals(200.0f, req.getAccount_avg_amount_30d());
-        assertEquals(0.0f, req.getAccount_new_device());
+        // the count includes the current deposit, so 1 means this device was never seen before
+        assertEquals(1.0f, req.getAccount_new_device());
         assertEquals(3.0f, req.getPayee_seen_institutions_14d());
         assertEquals(1.0f, req.getPayee_fraud_count_30d());
         assertEquals(2.0f, req.getDevice_fraud_count_30d());
